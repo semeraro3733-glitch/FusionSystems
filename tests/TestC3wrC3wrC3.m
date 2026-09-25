@@ -49,8 +49,17 @@ Data;
 SOrders:= {* Valuation(#E,3) : E in SReps *};
 SOrders;
 
-// EXPECTED VALUES PENDING: the GAP reference run (validation/run_c3wrc3wrc3.g) is
-// still in progress; the assertions against it will be added here.
+// Expected values from validation/run_c3wrc3wrc3.g (GAP port of ProtoEssentialSubgroups).
+assert #AutReps eq 16;
+assert #SReps eq 18;
+assert Data eq {* <12,1,27,729,true>,
+    <11,1,243,2187,false>, <11,1,27,729,false>, <11,1,3,27,false>,
+    <10,2,2187,6561,false>, <10,2,243,2187,false>, <10,1,81,729,false>,
+    <10,1,27,81,false>, <10,1,3,27,false>,
+    <9,3,2187,6561,false>, <9,3,243,2187,false>, <9,2,729,2187,false>,
+    <8,3,6561,6561,false>, <8,2,243,729,false>,
+    <7,3,2187,2187,false>, <7,1,9,27,false> *};
+assert SOrders eq {* 12, 11^^3, 10^^6, 9^^4, 8^^2, 7^^2 *};
 
 // The S-classes are pairwise distinct and every returned subgroup passes the
 // original Parker-Semeraro proto-essential tests (as in the loop in the
