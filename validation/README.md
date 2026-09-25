@@ -64,6 +64,18 @@ with `Fast:=true` therefore returns fewer subgroups than with `Fast:=false`. The
 cannot be essential, so the saturated fusion systems found by `AllFusionSystems` are the same.
 For all the other orders in the table the two searches return exactly the same `S`-classes.
 
+The zero-exception orders do not depend on the choice of central series. The candidate sets
+depend on how the lower central series is refined, and the MAGMA intrinsic
+`RefinedLowerCentralSeries` refines it differently from GAP's `CompositionSeriesThrough`. The
+check was repeated with 5 random refinements of every non-abelian group of order `2^5`, `3^4`,
+`3^5` and `5^4` (620 pairs), and there were no exceptions.
+
+**End-to-end check of the pipeline.** For every non-abelian group of order `3^4`, `3^5`, `5^4`
+and `2^5`, the GAP port of `ProtoEssentialSubgroups(S : Fast:=true)` returns exactly the
+`S`-classes that pass the Parker–Semeraro tests in an exhaustive search: 17, 77, 24 and 31
+classes in total. This covers the `Aut(S)`-orbit computation and the removal of orbits that
+leave the candidate set. `tests/TestFastVsOriginal.m` makes the same comparison in MAGMA.
+
 ## 2. Essential subgroups of group fusion systems
 
 `EssentialsOfGroupFound(G, p)` lists the essential subgroups of the fusion system of `G`,
