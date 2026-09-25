@@ -126,4 +126,14 @@ memory limit before finishing.
 
 Check that the result does not depend on the refinement of the lower central series: pending.
 
-Comparison with the output of the GAP code accompanying arXiv:2607.24674: pending.
+**Comparison with the author's GAP code.** `AllProtoEssentials` from `find-proto-essentials.g`
+(pete-g00/sporadics-code) returns 11 `Aut(S)`-classes, and all of them are among the 16 above.
+Its final tests differ from the Parker–Semeraro tests kept here, and it rejects five of our
+classes:
+* The four classes with `Out_S(E) ≅ 3^3` (rank 7 or 8) are rejected only because of its bound
+  `rank(E) >= n^2 = 9`. That bound is too strong: `SL_2(27)` has faithful `F_3`-modules of
+  dimension 6 (the natural module) and 8 (the twisted tensor product `V ⊗ V^(3) ⊗ V^(9)`). See
+  also PSL(3,8) in section 2.
+* The class `[10,2,243,2187]` with `Out_S(E) ≅ 3^2` is rejected by the author's additional "lift"
+  test on `Aut(N_S(E))`. The Parker–Semeraro code keeps it, and it is dealt with when the
+  candidates for `Aut_F(E)` are constructed.
