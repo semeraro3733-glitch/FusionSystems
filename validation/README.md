@@ -8,7 +8,9 @@ checked in GAP 4.12.1 with the packages `autpgrp` and `smallgrp`.
   `IsStronglypSylow`, `RadicalTest` and the solubility test. It also has the validation
   functions used below.
 * `run_c3wrc3wrc3.g` produces the expected values in `tests/TestC3wrC3wrC3.m`.
-* `run_validation.g` runs the checks below.
+* `run_validation.g` runs the checks in sections 1 and 2.
+* `run_refinements.g` checks that the result for C3 wr C3 wr C3 does not depend on the chosen
+  refinement of the lower central series.
 
 ```
 gap -q -o 6g validation/fast_protoessentials.g validation/run_c3wrc3wrc3.g
@@ -124,7 +126,17 @@ For comparison, the old approach needs every subgroup class of `S` (or of `S/Z(S
 `Aut(E)` for every `S`-centric one. In GAP, `ConjugacyClassesSubgroups(S)` ran out of its 7 GB
 memory limit before finishing.
 
-Check that the result does not depend on the refinement of the lower central series: pending.
+**Independence of the refinement.** Two factors of the lower central series below `[S,S]` are
+not cyclic: `gamma_2/gamma_3 ≅ 3^2` and `gamma_3/gamma_4 ≅ 3^2`. So there are 16 refinements
+with factors of order 3. `run_refinements.g` tests the candidates coming from all 16
+subgroups `A` at once:
+* 369 `S`-classes of `S`-centric candidates;
+* 82 of them pass the tests not needing `Aut(E)`;
+* these form 49 `Aut(S)`-orbits.
+
+Every one of the 16 refinements gives the same **16 `Aut(S)`-classes and 18 `S`-classes**. So
+the expected values in `tests/TestC3wrC3wrC3.m` do not depend on the refinement that MAGMA's
+`RefinedLowerCentralSeries` chooses.
 
 **Comparison with the author's GAP code.** `AllProtoEssentials` from `find-proto-essentials.g`
 (pete-g00/sporadics-code) returns 11 `Aut(S)`-classes, and all of them are among the 16 above.

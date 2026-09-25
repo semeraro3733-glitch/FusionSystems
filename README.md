@@ -77,6 +77,10 @@ Run from the directory containing `FusionSystems.m`:
     magma tests/TestC3wrC3wrC3.m      # the fast search on C3 wr C3 wr C3 (order 3^13)
     magma tests/TestFastVsOriginal.m  # fast = original on C3 wr C3 and all groups of order 3^4, 3^5, 5^4
 
+For groups of order `2^6` or `3^6`, `Fast:=true` can return fewer proto-essential subgroups than
+`Fast:=false`. The extra subgroups pass the original tests but cannot be essential (see
+`validation/README.md`), so the saturated fusion systems found are the same.
+
 **The MAGMA code has not been run.** It was written in an environment without MAGMA. The
 expected values in `tests/TestC3wrC3wrC3.m` come from a line-by-line GAP port of
 `ProtoEssentialSubgroups` (`validation/fast_protoessentials.g`); see
@@ -89,6 +93,11 @@ expected values in `tests/TestC3wrC3wrC3.m` come from a line-by-line GAP port of
 * 73 `S`-classes of these pass the tests that do not need `Aut(E)`. They form 45 `Aut(S)`-orbits.
 * `ProtoEssentialSubgroups` returns **16 `Aut(S)`-classes (18 `S`-classes)** of proto-essential
   subgroups, of orders `3^7` to `3^12`. This took about 29 minutes in GAP.
+* The result is the same for all 16 possible refinements of the lower central series, so it
+  does not matter which one MAGMA picks.
+* The result includes all 11 classes found by the author's GAP code. The author's code rejects
+  the other five with stricter filters; four are rejected only by its bound `rank(E) >= n^2`,
+  which is too strong.
 * The old approach needs the full subgroup lattice. In GAP it ran out of its 7 GB memory limit.
 
 `tests/TestC3wrC3wrC3.m` checks these numbers in MAGMA. See
