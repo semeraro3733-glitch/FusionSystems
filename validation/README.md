@@ -97,9 +97,33 @@ rank 6).
 
 ## 3. C3 wr C3 wr C3
 
-Pending: the GAP reference run (`run_c3wrc3wrc3.g`) is still in progress.
+`run_c3wrc3wrc3.g` gives the following for `S = C3 wr C3 wr C3`, the Sylow 3-subgroup of
+`Sym(27)`, of order `3^13`. Times are for GAP 4.12.1 on one core.
 
-So far the port reports 2638 candidates from the central series (in 4 seconds), 73
-`S`-classes passing the tests that do not need `Aut(E)`, and 45 `Aut(S)`-orbits on them,
-none of which leaves the candidate set. The exhaustive approach (`ConjugacyClassesSubgroups(S)`)
-ran out of its 7 GB memory limit.
+| step | result | time |
+|---|---|---|
+| candidates `C_S(xA/A)` (with GAP's `CompositionSeriesThrough`) | 2638 | 4 s |
+| `S`-classes passing the tests not needing `Aut(E)` | 73 | 10 min |
+| `Aut(S)`-orbits on these (Aut(S) has 20 generators) | 45, none leaving the candidate set | 1.5 min |
+| after `RadicalTest` and the solubility test (one `Aut(E)` per orbit) | **16 `Aut(S)`-classes, 18 `S`-classes** | 17.5 min |
+
+The 16 `Aut(S)`-classes, given as `[log_3|E|, log_3|N_S(E):E|, |Z(E)|, |E:Phi(E)|, E normal in S]`:
+
+```
+[12,1,27,729,true]
+[11,1,243,2187,false]  [11,1,27,729,false]    [11,1,3,27,false]
+[10,2,2187,6561,false] [10,2,243,2187,false]  [10,1,81,729,false]  [10,1,27,81,false]  [10,1,3,27,false]
+[9,3,2187,6561,false]  [9,3,243,2187,false]   [9,2,729,2187,false]
+[8,3,6561,6561,false]  [8,2,243,729,false]
+[7,3,2187,2187,false]  [7,1,9,27,false]
+```
+
+The `S`-classes have orders `3^12` (1), `3^11` (3), `3^10` (6), `3^9` (4), `3^8` (2) and `3^7` (2).
+
+For comparison, the old approach needs every subgroup class of `S` (or of `S/Z(S)`), plus
+`Aut(E)` for every `S`-centric one. In GAP, `ConjugacyClassesSubgroups(S)` ran out of its 7 GB
+memory limit before finishing.
+
+Check that the result does not depend on the refinement of the lower central series: pending.
+
+Comparison with the output of the GAP code accompanying arXiv:2607.24674: pending.

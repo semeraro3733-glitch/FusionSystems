@@ -84,4 +84,12 @@ expected values in `tests/TestC3wrC3wrC3.m` come from a line-by-line GAP port of
 
 ## Results for C3 wr C3 wr C3 (GAP port)
 
-See [`validation/README.md`](validation/README.md) for the full output and timings.
+`S = C3 wr C3 wr C3` has order `3^13`.
+* `CentralSeriesCentralizers` gives 2638 candidates (in 4 seconds in GAP).
+* 73 `S`-classes of these pass the tests that do not need `Aut(E)`. They form 45 `Aut(S)`-orbits.
+* `ProtoEssentialSubgroups` returns **16 `Aut(S)`-classes (18 `S`-classes)** of proto-essential
+  subgroups, of orders `3^7` to `3^12`. This took about 29 minutes in GAP.
+* The old approach needs the full subgroup lattice. In GAP it ran out of its 7 GB memory limit.
+
+`tests/TestC3wrC3wrC3.m` checks these numbers in MAGMA. See
+[`validation/README.md`](validation/README.md) for the list of classes.
