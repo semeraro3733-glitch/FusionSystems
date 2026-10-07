@@ -235,16 +235,28 @@ class CompiledPGroup:
     calls to ``pres.collect`` occur after this table is built.
     """
 
-    def __init__(self, pres: PCPresentation):
+    def __init__(self, pres: PCPresentation, _slow: bool = False):
         self.pres = pres
         self.n = pres.n
         self.p = pres.p
         self.order = pres.p ** pres.n
-        self._compile()
+        if _slow:
+            self._compile_slow()
+        else:
+            self._compile_fast()
 
     # -- compilation ---------------------------------------------------------
 
-    def _compile(self):
+    def _compile_slow(self):
+        """Reference implementation: BFS over the Cayley graph of
+        right-multiplication by each generator, using `pres.collect` to
+        append one letter at a time.  Correct for a presentation of any
+        nilpotency class, but collect()'s per-call overhead makes this
+        O(order * n) *Python-level* collection calls -- around 20s already
+        at order 5^7 for a single group, i.e. days across the tens of
+        thousands of groups of that order the showcase needs. Kept only
+        as the cross-validation oracle for `_compile_fast` (see
+        tests/test_pcgroup.py) and as a documented fallback."""
         n, order = self.n, self.order
         pres = self.pres
         elements: List[Vector] = [pres.identity()]
@@ -253,8 +265,6 @@ class CompiledPGroup:
         parent = np.full(order, -1, dtype=np.int64)
         parent_gen = np.full(order, -1, dtype=np.int64)
 
-        # BFS over the Cayley graph of right-multiplication by each generator,
-        # using `pres.collect` only to append a single letter at a time.
         queue = [0]
         qi = 0
         while qi < len(queue):
@@ -283,21 +293,174 @@ class CompiledPGroup:
         self.elements: List[Vector] = elements
         self.index_of: Dict[Vector, int] = index_of
         self.right: np.ndarray = right            # shape (n, order)
+        self._finish_compile(parent, parent_gen)
+
+    def _compile_fast(self):
+        """Build the regular representation bottom-up, one generator at a
+        time, instead of by Cayley-graph BFS with general word collection.
+
+        L_n = <x_n> is trivial to compile directly (order p, no relations
+        among its own generators).  Given T := L_{K+1} = <x_{K+2},...,x_n>
+        already compiled, L_K = <x_{K+1},...,x_n> is its extension by one
+        generator x_{K+1}, with x_{K+1}^p = w and conjugation
+        alpha(t) := x_{K+1}^{-1} t x_{K+1} both landing inside T (by the
+        presentation's "only strictly later generators" invariant) -- so
+        both are already known *elements of the already-compiled T*,
+        computed once via `power_words`/`comm_words` fed through a single
+        base-case collection, not one per group element.
+
+        Elements of L_K are written as pairs (a,t), a in [0,p), t in T,
+        standing for x_{K+1}^a * t -- new generator's exponent *first*,
+        matching `right`'s own row convention (row 0 = the newest
+        generator at each step), so that a layer's own tuple position g
+        always agrees with `right`'s row g, which is the invariant every
+        other method (`mul`, `power`, `apply_hom`, ...) relies on:
+            (a,t) * (s,0) = (a, t*s)                            [s in T]
+            (a,t) * (1,1) = (a+1, alpha(t))           if a < p-1
+            (a,t) * (1,1) = (0, w*alpha(t))           if a = p-1
+        `alpha` is computed once per layer (a handful of `pres.collect`
+        calls total across the whole compilation, not one per element) and
+        applied to the whole layer at once via the vectorised
+        `apply_hom_array`; the one per-layer "fixed left factor" product
+        (w*alpha(t), needed only for the p-1 -> 0 carry) uses
+        `mul_array_left`, which needs T's own inverse table -- computed
+        here by the same `power(idx, |T|-1)` Lagrange trick `_finish_compile`
+        already uses for the outermost group, just applied once per layer
+        instead of once overall.  Every other step is either a single
+        `pres.collect` call or a vectorised NumPy array operation -- no
+        per-element Python-level group operation anywhere in the T-sized
+        work -- which is what takes compiling a single group of order 5^7
+        from ~20s (collection-based) to a small fraction of that, the
+        difference between the order-5^7 showcase (34,297 groups)
+        finishing in this session and not."""
+        n, p, pres = self.n, self.p, self.pres
+
+        elements: List[Vector] = [()]
+        right_t = np.zeros((0, 1), dtype=np.int64)
+
+        for K in range(n - 1, -1, -1):
+            m = len(elements)                  # |T| = |L_{K+1}|
+            t_gens = n - K - 1                  # generators of T
+            T = self._make_layer(t_gens, elements, right_t)
+            T.inv = T.power_array(np.arange(m, dtype=np.int64), m - 1) if m else np.array([], dtype=np.int64)
+
+            # alpha(x_{K+2+j}) = x_{K+2+j} * c^{-1}, c = [x_{K+1},x_{K+2+j}]
+            # -- a word already entirely within T (comm_words only ever
+            # reference generators strictly later than both arguments), so
+            # `pres.collect` is called a handful of times total (once per
+            # later generator per layer), not once per group element.  It
+            # returns a full length-n vector; positions 0..K are always
+            # zero (checked by PCPresentation.__post_init__), so the tail
+            # [K+1:] is exactly T's own length-t_gens local vector, in T's
+            # own (a-first) convention: T's own position j (0-indexed, row
+            # j of T.right) holds global generator x_{K+2+j}, in increasing
+            # order, directly matching `comm_word`'s own later-generator
+            # indexing -- no reversal needed with this convention.
+            alpha_gen_images = []
+            for j in range(t_gens):
+                global_0idx = K + 1 + j
+                c_vec = pres.collect(pres.comm_word(K, global_0idx))[K + 1:]
+                c_idx = T.index_of[c_vec]
+                c_inv_idx = T.power(c_idx, m - 1)       # Lagrange: c^{-1} = c^{|T|-1}
+                alpha_gen_images.append(T.mul(T.gen_index[j], c_inv_idx))
+            # w = x_{K+1}^p, as an element of T.
+            w_idx = T.index_of[pres.collect(pres.power_words[K])[K + 1:]]
+
+            # alpha applied to the whole layer at once (one vectorised call
+            # instead of m Python-level apply_hom calls).
+            all_t = np.arange(m, dtype=np.int64)
+            alpha1 = T.apply_hom_array(alpha_gen_images, all_t)
+
+            new_order = p * m
+            new_right = np.zeros((n - K, new_order), dtype=np.int64)
+            new_elements: List[Vector] = [None] * new_order  # type: ignore
+            for a in range(p):
+                base = a * m
+                for t in range(m):
+                    new_elements[base + t] = (a,) + elements[t]
+
+            # right-multiplication by a generator of T (row 1+g_local, T's
+            # own row g_local = global generator x_{K+2+g_local}):
+            # (a,t)*(s,0) = (a, t*s), independent of a.
+            for g_local in range(t_gens):
+                col_t = right_t[g_local]
+                for a in range(p):
+                    base = a * m
+                    new_right[1 + g_local, base:base + m] = base + col_t
+            # right-multiplication by x_{K+1} itself (row 0):
+            # (a,t)*(1,1) = (a+1,alpha(t)) for a<p-1; (0,w*alpha(t)) for a=p-1.
+            for a in range(p - 1):
+                new_right[0, a * m:a * m + m] = (a + 1) * m + alpha1
+            new_right[0, (p - 1) * m:(p - 1) * m + m] = T.mul_array_left(w_idx, alpha1)
+
+            elements = new_elements
+            right_t = new_right
+
+        self.elements = elements
+        self.index_of = {v: i for i, v in enumerate(elements)}
+        self.right = right_t
+        parent, parent_gen = self._bfs_tree_from_right()
+        self._finish_compile(parent, parent_gen)
+
+    def _make_layer(self, t_gens: int, elements: List[Vector], right: np.ndarray) -> "CompiledPGroup":
+        """A bare CompiledPGroup wrapping an already-built (elements,right)
+        table, so `mul`/`power`/`apply_hom` can be called on it directly --
+        those methods only ever touch `self.elements`, `self.right`,
+        `self.n`, `self.order`, `self.identity_index`."""
+        T = CompiledPGroup.__new__(CompiledPGroup)
+        T.n = t_gens
+        T.p = self.p
+        T.order = len(elements)
+        T.elements = elements
+        T.index_of = {v: i for i, v in enumerate(elements)}
+        T.right = right
+        T.identity_index = 0
+        T.gen_index = [T._gen_index(g) for g in range(t_gens)]
+        return T
+
+    def _bfs_tree_from_right(self):
+        """A parent/parent_gen BFS tree over the already-built `right`
+        table (used by `_conjugation_vector`) -- a plain graph BFS, no
+        presentation collection involved."""
+        order = self.order
+        parent = np.full(order, -1, dtype=np.int64)
+        parent_gen = np.full(order, -1, dtype=np.int64)
+        seen = np.zeros(order, dtype=bool)
+        seen[0] = True
+        queue = [0]
+        qi = 0
+        right = self.right
+        while qi < len(queue):
+            idx = queue[qi]
+            qi += 1
+            for g in range(self.n):
+                nxt = int(right[g, idx])
+                if not seen[nxt]:
+                    seen[nxt] = True
+                    parent[nxt] = idx
+                    parent_gen[nxt] = g
+                    queue.append(nxt)
+        return parent, parent_gen
+
+    def _finish_compile(self, parent, parent_gen):
+        n, order = self.n, self.order
         self.parent: np.ndarray = parent
         self.parent_gen: np.ndarray = parent_gen
         self.identity_index = 0
         self.gen_index: List[int] = [self._gen_index(g) for g in range(n)]
 
         # Everything below uses only `right`, via mul/power; no more collect().
-        self.inv: np.ndarray = np.array([self.power(idx, order - 1) for idx in range(order)],
-                                          dtype=np.int64)
+        # Vectorised (power_array) rather than one `power` call per element
+        # -- matters as much here, at the outermost order-p^n scale, as it
+        # does per-layer inside `_compile_fast`.
+        self.inv: np.ndarray = self.power_array(np.arange(order, dtype=np.int64), order - 1)
 
         conj = np.empty((n, order), dtype=np.int64)
+        all_idx = np.arange(order, dtype=np.int64)
         for g in range(n):
             ginv = int(self.inv[self.gen_index[g]])
             gidx = self.gen_index[g]
-            for idx in range(order):
-                conj[g, idx] = self.mul(self.mul(ginv, idx), gidx)
+            conj[g] = self.mul_array_right(self.mul_array_left(ginv, all_idx), gidx)
         self.conj: np.ndarray = conj
 
     def _gen_index(self, g: int) -> int:
@@ -405,6 +568,70 @@ class CompiledPGroup:
             if e:
                 cur = self.mul(cur, self.power(images[g], e))
         return cur
+
+    def apply_hom_array(self, images: Sequence[int], idx_array: np.ndarray) -> np.ndarray:
+        """`apply_hom(images, i)` for an entire NumPy array of i's at once:
+        group elements by each coordinate's exponent (the exponent only
+        ever takes p values) and batch the corresponding power-image
+        multiplication via `mul_array_right` -- O(n*p) vectorised steps
+        regardless of |idx_array|, instead of one Python-level `apply_hom`
+        call per element.  Used by `_compile_fast` to apply the
+        conjugation-by-the-new-generator automorphism to an entire
+        already-compiled layer at once."""
+        if not hasattr(self, "_elements_mat"):
+            self._elements_mat = np.array(self.elements, dtype=np.int64)
+        mat = self._elements_mat
+        cur = np.full(len(idx_array), self.identity_index, dtype=np.int64)
+        for g in range(self.n):
+            coords = mat[idx_array, g]
+            for e in range(1, self.p):
+                mask = coords == e
+                if mask.any():
+                    img_e = self.power(images[g], e)
+                    cur[mask] = self.mul_array_right(cur[mask], img_e)
+        return cur
+
+    def mul_array_pairwise(self, arr1: np.ndarray, arr2: np.ndarray) -> np.ndarray:
+        """mul(arr1[i], arr2[i]) for every i at once, with *both* arguments
+        varying per index (unlike `mul_array_right`/`mul_array_left`, which
+        need one side fixed): group by each coordinate's exponent in arr2,
+        same trick as `apply_hom_array`, batching each generator's
+        right-multiplication over the matching subset of positions via
+        NumPy fancy indexing -- O(n*p) vectorised steps regardless of the
+        arrays' length.  Used by `power_array` to vectorise computing
+        every element's inverse via Lagrange's theorem (x^{-1}=x^{|G|-1})
+        across a whole layer at once in `_compile_fast`, rather than one
+        Python-level `power` call per element."""
+        if not hasattr(self, "_elements_mat"):
+            self._elements_mat = np.array(self.elements, dtype=np.int64)
+        mat = self._elements_mat
+        cur = arr1.copy()
+        for g in range(self.n):
+            coords = mat[arr2, g]
+            col = self.right[g]
+            for e in range(1, self.p):
+                mask = coords == e
+                if mask.any():
+                    idxs = np.nonzero(mask)[0]
+                    sub = cur[idxs]
+                    for _ in range(e):
+                        sub = col[sub]
+                    cur[idxs] = sub
+        return cur
+
+    def power_array(self, arr: np.ndarray, e: int) -> np.ndarray:
+        """elements[i]^e for every i in arr at once, via binary
+        exponentiation using `mul_array_pairwise` -- O(log(e) * n * p)
+        vectorised steps regardless of |arr|."""
+        result = np.full(len(arr), self.identity_index, dtype=np.int64)
+        base = arr.copy()
+        while e > 0:
+            if e & 1:
+                result = self.mul_array_pairwise(result, base)
+            e >>= 1
+            if e:
+                base = self.mul_array_pairwise(base, base)
+        return result
 
     def _apply_hom_to_word(self, images: Sequence[int], word: Word) -> int:
         cur = self.identity_index
