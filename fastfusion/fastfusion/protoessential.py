@@ -278,22 +278,47 @@ def quotient_is_cyclic_or_quaternion(G: CompiledPGroup, E_gens: Sequence[int], E
                                       N: Sequence[int], out_order: int) -> bool:
     """Whether N/E is cyclic or generalised quaternion, using the classical
     characterisation "has a unique subgroup of order p" (tested directly on
-    N and E, without ever materialising the quotient group N/E)."""
+    N and E, without ever materialising the quotient group N/E).
+
+    The order of nE in N/E, for *every* n in N at once, is computed by
+    vectorised iterative powering (`mul_array_pairwise`, both factors
+    varying per element -- repeated squaring is not applicable here since
+    each element advances by its own fixed step n, not by self-squaring)
+    rather than one Python-level scalar loop (`_mod_E_order`) per n -- the
+    difference that matters once N = N_S(E) is a sizeable chunk of S,
+    which happens routinely for non-extraspecial groups (unlike every
+    hand-built showcase example, where E always has index exactly p)."""
     if out_order == 1:
         return True
     p = G.p
-    for n in N:
-        if _mod_E_order(G, n, E_set, out_order) == out_order:
-            return True  # N/E is cyclic
+    N_arr = np.fromiter(N, dtype=np.int64, count=len(N))
+    E_mask = np.zeros(G.order, dtype=bool)
+    E_mask[np.fromiter(E_set, dtype=np.int64, count=len(E_set))] = True
+
+    cur = N_arr.copy()
+    done = E_mask[cur]
+    result = np.where(done, 1, 0).astype(np.int64)
+    k = 1
+    while not done.all() and k <= out_order:
+        active = np.nonzero(~done)[0]
+        cur[active] = G.mul_array_pairwise(cur[active], N_arr[active])
+        k += 1
+        newly_done = np.zeros(len(N_arr), dtype=bool)
+        newly_done[active] = E_mask[cur[active]]
+        result[newly_done] = k
+        done |= newly_done
+
+    if (result == out_order).any():
+        return True  # N/E is cyclic
+
     subgroups_of_order_p = set()
-    for n in N:
-        if n in E_set:
-            continue
-        if _mod_E_order(G, n, E_set, p) == p:
-            H = frozenset(G.closure(list(E_gens) + [n]))
-            subgroups_of_order_p.add(H)
-            if len(subgroups_of_order_p) > 1:
-                return False
+    order_p = np.nonzero(result == p)[0]
+    for i in order_p:
+        n = int(N_arr[i])
+        H = frozenset(G.closure(list(E_gens) + [n]))
+        subgroups_of_order_p.add(H)
+        if len(subgroups_of_order_p) > 1:
+            return False
     return len(subgroups_of_order_p) == 1
 
 
@@ -347,7 +372,17 @@ def radical_test(G: CompiledPGroup, E_gens: Sequence[int], E_set: Set[int], N: S
     E elementary abelian is handled first and separately: there Inn(E) = 1
     and Aut(E) = GL(k,p), which has *no* nontrivial normal p-subgroup
     (O_p(GL(k,p)) = 1 for every k, p -- a standard fact), so the condition
-    holds unconditionally regardless of how large Aut_S(E) is."""
+    holds unconditionally regardless of how large Aut_S(E) is.
+
+    The shear-obstruction loop (checking every n in N\\C_S(E) against every
+    z in Z(E)) is vectorised over z for each n: z^{-1} and z^n are each
+    computed for the *whole* Z(E) array at once (via mul_array_left/right,
+    using the already-available full inverse table G.inv, rather than
+    G._conjugation_vector(n), which would cost O(|S|) per n for a quantity
+    only ever evaluated at the -- typically much smaller -- Z(E)), then
+    combined with `mul_array_pairwise` (both sides vary per z). Matters
+    once N (and so N\\C_S(E)) is a sizeable chunk of S, as happens for
+    non-extraspecial candidates where E is not already index p in S."""
     p = G.p
     if all(_order_within(G, e, p) in (1, p) for e in E_set) and \
             all(G.mul(a, b) == G.mul(b, a) for a in E_gens for b in E_gens):
@@ -356,24 +391,37 @@ def radical_test(G: CompiledPGroup, E_gens: Sequence[int], E_set: Set[int], N: S
     Phi = frattini_subgroup(G, E_gens)
     Phi_set = set(Phi)
     CSE = G.centralizer(E_gens)
-    extra = [n for n in N if n not in CSE]
+    CSE_set = set(CSE)
+    extra = [n for n in N if n not in CSE_set]
     if not extra:
         return True  # Aut_S(E) = Inn(E) exactly
     if len(ZE) == len(Phi):
         return False  # Aut_S(E) properly contains Inn(E) with no slack to absorb it
+    ZE_free = np.fromiter((z for z in ZE if z not in Phi_set), dtype=np.int64)
+    if ZE_free.size == 0:
+        return True
+    Phi_mask = np.zeros(G.order, dtype=bool)
+    Phi_mask[np.fromiter(Phi_set, dtype=np.int64, count=len(Phi_set))] = True
+    ZE_inv = G.inv[ZE_free]
     for n in extra:
-        for z in ZE:
-            if z in Phi_set:
-                continue
-            if G.mul(G.inverse(z), G.conjugate(z, n)) not in Phi_set:
-                return False  # shear obstruction: nontrivial action on Z(E)/Phi(E)
+        ninv = G.inverse(n)
+        conjugated = G.mul_array_right(G.mul_array_left(ninv, ZE_free), n)
+        lhs = G.mul_array_pairwise(ZE_inv, conjugated)
+        if not Phi_mask[lhs].all():
+            return False  # shear obstruction: nontrivial action on Z(E)/Phi(E)
     return True
 
 
 def cheap_proto_essential_test(G: CompiledPGroup, members: Set[int], gens: Sequence[int]) -> bool:
     """Tests not requiring Aut(E): |E/Phi(E)| >= |Out_S(E)|^2, the cheap
     consequence C_{N_S(E)}(E/Phi(E)) <= E of the radical condition, and
-    Out_S(E) compatible with a strongly p-embedded subgroup."""
+    Out_S(E) compatible with a strongly p-embedded subgroup.
+
+    This runs on *every* raw Theorem-3.6 candidate, so the
+    C_{N_S(E)}(E/Phi(E)) <= E loop -- originally O(|N_S(E)|*|gens|) scalar
+    conjugate/mul calls -- is vectorised over all of N_S(E) at once for
+    each (small, fixed) generator, via mul_array_right (fixed-right) and
+    mul_array_pairwise (both sides vary, for the final "re-attach n")."""
     N, out_order = normalizer_quotient_order(G, members, gens)
     Phi = frattini_subgroup(G, gens)
     index_E_Phi = len(members) // len(Phi)
@@ -382,11 +430,22 @@ def cheap_proto_essential_test(G: CompiledPGroup, members: Set[int], gens: Seque
     # C_{N_S(E)}(E/Phi(E)) <= E: an element n in N_S(E) centralises E/Phi(E)
     # iff conjugation by n fixes every generator of E modulo Phi(E).
     Phi_set = set(Phi)
-    for n in N:
-        if n in members:
-            continue
-        if all(G.mul(G.inverse(g), G.conjugate(g, n)) in Phi_set for g in gens):
-            return False
+    N_arr = np.fromiter(N, dtype=np.int64, count=len(N))
+    Phi_mask = np.zeros(G.order, dtype=bool)
+    Phi_mask[np.fromiter(Phi_set, dtype=np.int64, count=len(Phi_set))] = True
+    members_mask = np.zeros(G.order, dtype=bool)
+    members_mask[np.fromiter(members, dtype=np.int64, count=len(members))] = True
+    all_in_phi = np.ones(len(N_arr), dtype=bool)
+    Ninv = G.inv[N_arr]
+    for g in gens:
+        ginv = G.inverse(g)
+        conjugated = G.mul_array_pairwise(G.mul_array_right(Ninv, g), N_arr)
+        lhs = G.mul_array_left(ginv, conjugated)
+        all_in_phi &= Phi_mask[lhs]
+        if not all_in_phi.any():
+            break
+    if (all_in_phi & ~members_mask[N_arr]).any():
+        return False
     return is_strongly_p_sylow_compatible(G, gens, members, N, out_order)
 
 
@@ -615,8 +674,15 @@ def proto_essential_subgroups(pres: PCPresentation, G: Optional[CompiledPGroup] 
 
 
 def _is_cyclic(G: CompiledPGroup, members: Set[int]) -> bool:
+    """A subgroup of a p-group has order p^k for some k, so it is cyclic
+    iff some element has order exactly p^k, iff not every element g
+    satisfies g^(p^(k-1)) = 1 -- checked for every element of `members` at
+    once via the vectorised `power_array`, rather than one Python-level
+    order computation (`_order_within`, itself an O(order) scalar loop)
+    per element."""
     order = len(members)
-    for m in members:
-        if _order_within(G, m, order) == order:
-            return True
-    return False
+    if order == 1:
+        return True
+    members_arr = np.fromiter(members, dtype=np.int64, count=order)
+    powered = G.power_array(members_arr, order // G.p)
+    return bool((powered != G.identity_index).any())

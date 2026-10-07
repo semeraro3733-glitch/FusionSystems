@@ -798,18 +798,29 @@ class CompiledPGroup:
 
     def normal_closure(self, gens: Sequence[int], by: Optional[Sequence[int]] = None) -> List[int]:
         """Normal closure of <gens> under conjugation by the generators `by`
-        (default: all n PCGS generators of the whole group)."""
+        (default: all n PCGS generators of the whole group).  For each
+        (fixed) g in `by`, conjugate(e,g) = g^{-1}*e*g is computed for the
+        *entire* current set of e's at once (mul_array_left then
+        mul_array_right -- g is what is fixed here, e what varies, the
+        mirror of `_conjugation_vector`, which fixes the element being
+        conjugated and varies the conjugator) rather than one Python-level
+        `conjugate` call per (element, generator) pair -- the difference
+        between a handful of vectorised NumPy lookups and O(|seen|*|by|)
+        scalar calls once a candidate subgroup's own normal closure (as in
+        `frattini_subgroup`, called on every Theorem-3.6 candidate) gets
+        into the thousands of elements."""
         by = list(self.gen_index) if by is None else list(by)
+        by_inv = [self.inverse(g) for g in by]
         seen = set(self.closure(gens))
         changed = True
         while changed:
             changed = False
+            seen_arr = np.fromiter(seen, dtype=np.int64, count=len(seen))
             new_elems = set()
-            for e in list(seen):
-                for g in by:
-                    c = self.conjugate(e, g)
-                    if c not in seen and c not in new_elems:
-                        new_elems.add(c)
+            for g, ginv in zip(by, by_inv):
+                conjugated = self.mul_array_right(self.mul_array_left(ginv, seen_arr), g)
+                new_elems.update(conjugated.tolist())
+            new_elems -= seen
             if new_elems:
                 seen = set(self.closure(sorted(seen | new_elems)))
                 changed = True
