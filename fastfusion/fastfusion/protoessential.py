@@ -422,8 +422,13 @@ def cheap_proto_essential_test(G: CompiledPGroup, members: Set[int], gens: Seque
     conjugate/mul calls -- is vectorised over all of N_S(E) at once for
     each (small, fixed) generator, via mul_array_right (fixed-right) and
     mul_array_pairwise (both sides vary, for the final "re-attach n")."""
+    import os as _os, time as _time
+    _DBG = _os.environ.get("FASTFUSION_DEBUG_TIMING")
+    _t0 = _time.time() if _DBG else None
     N, out_order = normalizer_quotient_order(G, members, gens)
+    if _DBG: print(f"    [cheap_test] normalizer_quotient_order: {_time.time()-_t0:.2f}s |N|={len(N)} out_order={out_order}", flush=True); _t0 = _time.time()
     Phi = frattini_subgroup(G, gens)
+    if _DBG: print(f"    [cheap_test] frattini_subgroup: {_time.time()-_t0:.2f}s |Phi|={len(Phi)}", flush=True); _t0 = _time.time()
     index_E_Phi = len(members) // len(Phi)
     if index_E_Phi < out_order ** 2:
         return False
@@ -444,9 +449,12 @@ def cheap_proto_essential_test(G: CompiledPGroup, members: Set[int], gens: Seque
         all_in_phi &= Phi_mask[lhs]
         if not all_in_phi.any():
             break
+    if _DBG: print(f"    [cheap_test] CNSE loop: {_time.time()-_t0:.2f}s", flush=True); _t0 = _time.time()
     if (all_in_phi & ~members_mask[N_arr]).any():
         return False
-    return is_strongly_p_sylow_compatible(G, gens, members, N, out_order)
+    result = is_strongly_p_sylow_compatible(G, gens, members, N, out_order)
+    if _DBG: print(f"    [cheap_test] is_strongly_p_sylow_compatible: {_time.time()-_t0:.2f}s", flush=True)
+    return result
 
 
 # ---------------------------------------------------------------------------
