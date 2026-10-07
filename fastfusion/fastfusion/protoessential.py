@@ -56,6 +56,7 @@ enumeration is ever built).
 """
 from __future__ import annotations
 
+import time
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Sequence, Set, Tuple
 
@@ -131,15 +132,19 @@ class Candidate:
 
 
 def central_series_candidates(pres: PCPresentation, G: Optional[CompiledPGroup] = None,
-                               verbose: bool = False) -> List[Candidate]:
+                               verbose: bool = False, validate: bool = False) -> List[Candidate]:
     """All subgroups C_S(xA/A), A ranging over the PCGS tails properly inside
     S' (down to and including A = 1) and xA over representatives of the
-    conjugacy classes of order-p elements of S/A."""
+    conjugacy classes of order-p elements of S/A.  `validate=True` adds an
+    (expensive, O(|candidate|) per class) sanity check that the computed
+    generating set really does generate the lifted candidate; used in
+    testing, not needed once that logic is trusted for a given family."""
     if G is None:
         G = CompiledPGroup(pres)
     p = pres.p
     k0 = derived_subgroup_tail_position(G)
     candidates: List[Candidate] = []
+    t0 = time.time()
     for k in range(k0 + 1, pres.n + 1):
         if k == pres.n:
             Qg = G  # S/1 = S; avoid rebuilding an identical table
@@ -147,29 +152,34 @@ def central_series_candidates(pres: PCPresentation, G: Optional[CompiledPGroup] 
             qpres = quotient_presentation(pres, k)
             Qg = CompiledPGroup(qpres)
         classes = Qg.conjugacy_classes()
-        kernel_gens = list(range(k, pres.n))  # 0-indexed generator indices k..n-1
-        kernel_gen_idx = [G.gen_index[g] for g in kernel_gens]
+        kernel_gen_idx = [G.gen_index[g] for g in range(k, pres.n)]
+        pad = (0,) * (G.n - k)
+        n_this_section = 0
         for cls in classes:
             rep = cls[0]
             if Qg.order_of(rep) != p:
                 continue
             Hq = Qg.centralizer([rep])
+            if len(Hq) == Qg.order:
+                continue  # rep is central in Q: the lifted candidate is all of S, excluded anyway
+            n_this_section += 1
             members = frozenset(lift_subgroup(G, k, Qg, Hq))
             # a generating set: the kernel's own generators, plus lifts of a
             # small generating set of Hq = C_Q(rep) (Hq need not be cyclic,
             # e.g. an elementary abelian hyperplane, so a single lifted
             # element is not always enough).
             Hq_gens = Qg.small_generating_set(Hq)
-            pad = (0,) * (G.n - k)
             lifts = [G.index_of[Qg.elements[h] + pad] for h in Hq_gens]
             gens = tuple(kernel_gen_idx + lifts)
-            assert set(G.closure(list(gens))) == set(members), (
-                "generating set does not generate the full lifted candidate"
-            )
+            if validate:
+                assert set(G.closure(list(gens))) == set(members), (
+                    "generating set does not generate the full lifted candidate"
+                )
             candidates.append(Candidate(members=members, gens=gens))
         if verbose:
-            print(f"  section S/L_{k} (order {Qg.order}): "
-                  f"{sum(1 for c in classes if Qg.order_of(c[0]) == p)} order-{p} classes")
+            print(f"  section S/L_{k} (order {Qg.order}): {n_this_section} order-{p} classes "
+                  f"(running total {len(candidates)} candidates, {time.time()-t0:.1f}s elapsed)",
+                  flush=True)
     return candidates
 
 
@@ -380,20 +390,58 @@ def subgroup_invariants(G: CompiledPGroup, members: Set[int], gens: Sequence[int
 
 
 def find_s_class(G: CompiledPGroup, seen: List[Tuple[Set[int], Sequence[int], Tuple]],
-                  members: Set[int], gens: Sequence[int]) -> int:
-    """Index of an already-seen candidate that `members` is S-conjugate to,
-    via the vectorised "is there g in S with gens^g subset other_members"
-    test from pcgroup.py, or -1 if none found."""
-    inv = subgroup_invariants(G, members, gens)
-    for idx, (other_members, other_gens, other_inv) in enumerate(seen):
-        if inv != other_inv:
-            continue
-        order = G.order
-        mask = np.ones(order, dtype=bool)
+                  members: Set[int], gens: Sequence[int],
+                  exact_index: Optional[Dict[frozenset, int]] = None,
+                  normalizer_order: Optional[int] = None,
+                  inv: Optional[Tuple] = None) -> int:
+    """Index of an already-seen candidate that `members` is S-conjugate to.
+
+    Two optimisations, both exact (neither weakens correctness, only
+    performance):
+
+    1. Many raw candidates from `central_series_candidates` turn out to be
+       *literally the same subgroup* (not just conjugate) -- e.g. several
+       order-p elements differing by a twist in Z(S) can share the same
+       centraliser.  We check for an exact match first, O(1) amortised via
+       `exact_index` (a dict keyed by the frozenset of members, shared
+       across calls by the caller).
+
+    2. If `members` is itself *normal* in S (pass its precomputed
+       |N_S(members)| as `normalizer_order`; this is always available since
+       callers already compute it for the cheap tests), it has no
+       nontrivial S-conjugates at all (E^g = E for every g), so once the
+       exact match fails, `members` is a genuinely new S-class and no
+       comparison against `seen` is needed.  Index-p candidates (as arise
+       throughout the showcase groups of this project, see the module
+       docstring) are always normal, so this turns an O(k) or O(k^2) search
+       into O(1) for them; it is a correct shortcut for *any* input, not a
+       family-specific assumption, since it is checked directly rather than
+       assumed.
+
+    Falls back to the real (more expensive, but exact and fully general)
+    conjugacy test otherwise."""
+    fs = frozenset(members)
+    if exact_index is not None:
+        idx = exact_index.get(fs)
+        if idx is not None:
+            return idx
+    if normalizer_order == G.order:
+        return -1
+    if inv is None:
+        inv = subgroup_invariants(G, members, gens)
+    relevant = [idx for idx, (_, _, other_inv) in enumerate(seen) if other_inv == inv]
+    if not relevant:
+        return -1
+    # cv[h] depends only on h, not on which "other" class we compare against,
+    # so compute it once per generator and reuse it for every comparison.
+    cvs = [G._conjugation_vector(h) for h in gens]
+    order = G.order
+    for idx in relevant:
+        other_members = seen[idx][0]
         other_mask = np.zeros(order, dtype=bool)
         other_mask[list(other_members)] = True
-        for h in gens:
-            cv = G._conjugation_vector(h)
+        mask = np.ones(order, dtype=bool)
+        for cv in cvs:
             mask &= other_mask[cv]
             if not mask.any():
                 break
@@ -431,20 +479,27 @@ def proto_essential_subgroups(pres: PCPresentation, G: Optional[CompiledPGroup] 
         print(f"candidates from the central series: {len(raw)}")
 
     seen: List[Tuple[Set[int], Tuple[int, ...], Tuple]] = []
+    exact_index: Dict[frozenset, int] = {}
     cheap_pass: List[Tuple[Set[int], Tuple[int, ...]]] = []
     n_centric = 0
     for cand in raw:
         members, gens = set(cand.members), cand.gens
+        fs = frozenset(members)
+        if fs in exact_index:
+            continue
         if len(members) == G.order:
             continue
         if not is_centric(G, members, gens):
             continue
         if _is_cyclic(G, members):
             continue
-        idx = find_s_class(G, seen, members, gens)
-        if idx != -1:
-            continue
         inv = subgroup_invariants(G, members, gens)
+        idx = find_s_class(G, seen, members, gens, exact_index=exact_index,
+                            normalizer_order=inv[1], inv=inv)
+        if idx != -1:
+            exact_index[fs] = idx
+            continue
+        exact_index[fs] = len(seen)
         seen.append((members, gens, inv))
         n_centric += 1
         if cheap_proto_essential_test(G, members, gens):
@@ -466,14 +521,30 @@ def proto_essential_subgroups(pres: PCPresentation, G: Optional[CompiledPGroup] 
     reps: List[int] = []
     inv_cache = [subgroup_invariants(G, m, g) for m, g in cheap_pass]
     class_list = [(m, g) for m, g in cheap_pass]
+    class_exact_index: Dict[frozenset, int] = {frozenset(m): j for j, (m, g) in enumerate(class_list)}
 
     def class_position(members: Set[int], gens: Tuple[int, ...]) -> int:
+        fs = frozenset(members)
+        idx = class_exact_index.get(fs)
+        if idx is not None:
+            return idx
         inv = subgroup_invariants(G, members, gens)
-        for j, (m2, g2) in enumerate(class_list):
-            if inv_cache[j] != inv:
-                continue
-            idx = find_s_class(G, [(m2, g2, inv_cache[j])], members, gens)
-            if idx != -1:
+        if inv[1] == G.order:
+            return -1  # normal in S: no nontrivial conjugates, and the exact match above failed
+        relevant = [j for j in range(len(class_list)) if inv_cache[j] == inv]
+        if not relevant:
+            return -1
+        cvs = [G._conjugation_vector(h) for h in gens]
+        order = G.order
+        for j in relevant:
+            other_mask = np.zeros(order, dtype=bool)
+            other_mask[list(class_list[j][0])] = True
+            mask = np.ones(order, dtype=bool)
+            for cv in cvs:
+                mask &= other_mask[cv]
+                if not mask.any():
+                    break
+            if mask.any():
                 return j
         return -1
 

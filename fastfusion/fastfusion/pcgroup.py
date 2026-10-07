@@ -59,6 +59,7 @@ Two layers of representation
 
 from __future__ import annotations
 
+import random
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Sequence, Tuple
 
@@ -407,11 +408,32 @@ class CompiledPGroup:
 
     # -- subgroup machinery ------------------------------------------------
 
-    def small_generating_set(self, elements: Sequence[int]) -> List[int]:
-        """A small generating set for the subgroup <elements> (not assumed
-        to already be closed), found greedily: repeatedly add an element not
-        yet in the closure of what has been chosen so far."""
-        target = set(self.closure(elements)) if elements else {self.identity_index}
+    def small_generating_set(self, elements: Sequence[int], already_closed: bool = True) -> List[int]:
+        """A small generating set for the subgroup <elements>.  By default
+        `elements` is assumed to *already be a closed subgroup* (true for
+        every caller in this project, since it is always the output of
+        `centralizer`/`normalizer`/`closure` itself) so the target is just
+        set(elements) -- no closure() call needed to establish it, which
+        matters because calling closure() with the *entire* (possibly
+        large) `elements` list as the generating set would itself cost
+        O(|elements|^2); pass already_closed=False to fall back to
+        computing it the slow way for an arbitrary (not necessarily closed)
+        input.  Tries random subsets of increasing size first (fast: for a
+        rank-r subgroup, a handful of random elements generate it with high
+        probability once the subset size reaches about r), falling back to
+        a greedy walk only if that fails."""
+        elements = list(elements)
+        if not elements:
+            return []
+        target = set(elements) if already_closed else set(self.closure(elements))
+        if len(target) == 1:
+            return []
+        rng = random.Random(0)
+        for size in range(1, min(len(elements), 16) + 1):
+            for _ in range(3):
+                subset = rng.sample(elements, size)
+                if set(self.closure(subset)) == target:
+                    return subset
         chosen: List[int] = []
         have = {self.identity_index}
         for e in elements:
