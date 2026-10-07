@@ -311,11 +311,25 @@ def quotient_is_cyclic_or_quaternion(G: CompiledPGroup, E_gens: Sequence[int], E
     if (result == out_order).any():
         return True  # N/E is cyclic
 
+    # Every element of a given E-coset gives the *same* H = <E,n> (n' = n*e
+    # for e in E generates the same subgroup as n, since e is already in
+    # E), so once a coset's H has been computed, every other element of
+    # that coset (there are |E| of them) can be skipped via a coverage
+    # mask -- the difference between O(number of distinct order-p cosets)
+    # and O(number of elements in those cosets) calls to `closure`, which
+    # for a large, non-index-p E (unlike every hand-built showcase
+    # candidate) are not remotely the same order of magnitude: this loop
+    # was calling closure() once for each of ~75,000 elements across just
+    # a handful of actual cosets for one real order-5^7 group.
     subgroups_of_order_p = set()
     order_p = np.nonzero(result == p)[0]
+    covered = np.zeros(G.order, dtype=bool)
     for i in order_p:
         n = int(N_arr[i])
+        if covered[n]:
+            continue
         H = frozenset(G.closure(list(E_gens) + [n]))
+        covered[np.fromiter(H, dtype=np.int64, count=len(H))] = True
         subgroups_of_order_p.add(H)
         if len(subgroups_of_order_p) > 1:
             return False
