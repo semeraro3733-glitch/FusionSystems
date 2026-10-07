@@ -557,6 +557,9 @@ def proto_essential_subgroups(pres: PCPresentation, G: Optional[CompiledPGroup] 
     exact_index: Dict[frozenset, int] = {}
     cheap_pass: List[Tuple[Set[int], Tuple[int, ...]]] = []
     n_centric = 0
+    import os as _os, time as _time
+    _DEBUG_TIMING = _os.environ.get("FASTFUSION_DEBUG_TIMING")
+    _tbuckets = {"is_centric": 0.0, "is_cyclic": 0.0, "invariants": 0.0, "find_s_class": 0.0, "cheap_test": 0.0}
     for cand in raw:
         members, gens = set(cand.members), cand.gens
         fs = frozenset(members)
@@ -564,24 +567,39 @@ def proto_essential_subgroups(pres: PCPresentation, G: Optional[CompiledPGroup] 
             continue
         if len(members) == G.order:
             continue
-        if not is_centric(G, members, gens):
+        if _DEBUG_TIMING: _t0 = _time.time()
+        ic = is_centric(G, members, gens)
+        if _DEBUG_TIMING: _tbuckets["is_centric"] += _time.time() - _t0
+        if not ic:
             continue
-        if _is_cyclic(G, members):
+        if _DEBUG_TIMING: _t0 = _time.time()
+        icyc = _is_cyclic(G, members)
+        if _DEBUG_TIMING: _tbuckets["is_cyclic"] += _time.time() - _t0
+        if icyc:
             continue
+        if _DEBUG_TIMING: _t0 = _time.time()
         inv = subgroup_invariants(G, members, gens)
+        if _DEBUG_TIMING: _tbuckets["invariants"] += _time.time() - _t0
+        if _DEBUG_TIMING: _t0 = _time.time()
         idx = find_s_class(G, seen, members, gens, exact_index=exact_index,
                             normalizer_order=inv[1], inv=inv)
+        if _DEBUG_TIMING: _tbuckets["find_s_class"] += _time.time() - _t0
         if idx != -1:
             exact_index[fs] = idx
             continue
         exact_index[fs] = len(seen)
         seen.append((members, gens, inv))
         n_centric += 1
-        if cheap_proto_essential_test(G, members, gens):
+        if _DEBUG_TIMING: _t0 = _time.time()
+        cpt = cheap_proto_essential_test(G, members, gens)
+        if _DEBUG_TIMING: _tbuckets["cheap_test"] += _time.time() - _t0
+        if cpt:
             cheap_pass.append((members, gens))
     if verbose:
         print(f"S-classes of S-centric candidates: {n_centric}; "
               f"passing the tests not requiring Aut(E): {len(cheap_pass)}")
+    if _DEBUG_TIMING:
+        print("TIMING BUCKETS (candidate loop):", _tbuckets, flush=True)
 
     if aut_gens is None:
         raise ValueError(
@@ -623,6 +641,8 @@ def proto_essential_subgroups(pres: PCPresentation, G: Optional[CompiledPGroup] 
                 return j
         return -1
 
+    _t_orbit0 = _time.time() if _DEBUG_TIMING else None
+    _n_closure_calls = 0
     for i in range(n):
         if label[i] != 0:
             continue
@@ -637,6 +657,7 @@ def proto_essential_subgroups(pres: PCPresentation, G: Optional[CompiledPGroup] 
             for a_images in aut_gens:
                 new_gens = tuple(G.apply_hom(a_images, g) for g in gj)
                 new_members = set(G.closure(list(new_gens)))
+                _n_closure_calls += 1
                 m = class_position(new_members, new_gens)
                 if m == -1:
                     is_dead = True
@@ -646,6 +667,9 @@ def proto_essential_subgroups(pres: PCPresentation, G: Optional[CompiledPGroup] 
         dead.append(is_dead)
     if verbose:
         print(f"Aut(S)-orbits: {len(reps)}, of which leave the candidate set: {sum(dead)}")
+    if _DEBUG_TIMING:
+        print(f"TIMING orbit loop: {_time.time()-_t_orbit0:.2f}s over {_n_closure_calls} closure calls, "
+              f"n={n} cheap_pass, {len(aut_gens)} aut_gens", flush=True)
 
     aut_classes = []
     s_classes = []
