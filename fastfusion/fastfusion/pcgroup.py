@@ -323,6 +323,38 @@ class CompiledPGroup:
                     cur = int(col[cur])
         return cur
 
+    def mul_array_right(self, arr: np.ndarray, j: int) -> np.ndarray:
+        """elements[i] * elements[j] for an entire NumPy array of i's at
+        once, batching the same letter-by-letter right-multiplication as
+        `mul` into O(n) vectorised NumPy steps (fancy indexing into `right`)
+        regardless of how large `arr` is, instead of O(|arr|) separate
+        Python-level `mul` calls.  Used wherever a closure-style computation
+        needs to multiply many elements by one fixed element -- which is
+        exactly what dominates `closure`/`_closure_extend` once a candidate
+        subgroup gets into the thousands of elements (see pcgroup.py's
+        module-level discussion and the paper's bottleneck section)."""
+        v = self.elements[j]
+        cur = arr
+        right = self.right
+        for g in range(self.n):
+            e = v[g]
+            if e:
+                col = right[g]
+                for _ in range(e):
+                    cur = col[cur]
+        return cur
+
+    def mul_array_left(self, i: int, arr: np.ndarray) -> np.ndarray:
+        """elements[i] * elements[j] for a fixed i and an entire array of
+        j's, via i*x = (x^{-1} i^{-1})^{-1}: x^{-1} is the elementwise
+        `inv` lookup, (.)*i^{-1} is `mul_array_right` (a fixed right factor,
+        batched left argument -- exactly the case that function handles),
+        and the outer inverse is again an elementwise `inv` lookup.  No
+        separate "left multiplication table" is needed."""
+        xinv = self.inv[arr]
+        prod = self.mul_array_right(xinv, self.inverse(i))
+        return self.inv[prod]
+
     def power(self, i: int, e: int) -> int:
         if e < 0:
             e += self.order  # relies on inv already available; not used before inv is built
@@ -408,6 +440,56 @@ class CompiledPGroup:
 
     # -- subgroup machinery ------------------------------------------------
 
+    def _flood(self, mask: np.ndarray, frontier: np.ndarray, gens: List[int]) -> None:
+        """Expand `mask` (a boolean membership array, with `frontier`'s
+        indices already set True in it) to the full closure under `gens`,
+        by vectorised wave BFS: each round batch-multiplies the *entire*
+        current frontier by every generator, on both sides, via
+        `mul_array_right`/`mul_array_left` -- O(n) NumPy steps per
+        generator per round, regardless of how large the frontier is,
+        rather than one Python-level `mul` call per (frontier element,
+        generator) pair. Mutates `mask` in place; does not return the
+        frontier (callers that need the final element list read it off
+        `mask` themselves, e.g. via `np.nonzero`)."""
+        while frontier.size:
+            parts = []
+            for g in gens:
+                parts.append(self.mul_array_right(frontier, g))
+                parts.append(self.mul_array_left(g, frontier))
+            cand = np.unique(np.concatenate(parts))
+            novel = cand[~mask[cand]]
+            if novel.size == 0:
+                return
+            mask[novel] = True
+            frontier = novel
+
+    def _closure_extend(self, have: set, gens: List[int], new_gen: int) -> set:
+        """Given `have`, already closed under `gens`, returns the closure of
+        have union {new_gen} under gens + [new_gen].  Seeds the flood from
+        `have` as-is (it is already closed under the old generators, so
+        there is no need to re-expand it through them) and only propagates
+        the genuinely new elements the latest generator contributes, via
+        the vectorised `_flood` above.  This is what makes incrementally
+        building up a generating set, one random element at a time, cheap
+        even when the final subgroup is large: `small_generating_set` below
+        never re-floods work it has already paid for, and the flood itself
+        is a handful of NumPy array operations per round rather than one
+        Python function call per element."""
+        order = self.order
+        mask = np.zeros(order, dtype=bool)
+        have_arr = np.fromiter(have, dtype=np.int64, count=len(have))
+        mask[have_arr] = True
+        all_gens = gens + [new_gen]
+        seed = np.unique(np.concatenate([
+            self.mul_array_right(have_arr, new_gen),
+            self.mul_array_left(new_gen, have_arr),
+        ]))
+        frontier = seed[~mask[seed]]
+        if frontier.size:
+            mask[frontier] = True
+        self._flood(mask, frontier, all_gens)
+        return set(np.nonzero(mask)[0].tolist())
+
     def small_generating_set(self, elements: Sequence[int], already_closed: bool = True) -> List[int]:
         """A small generating set for the subgroup <elements>.  By default
         `elements` is assumed to *already be a closed subgroup* (true for
@@ -418,10 +500,20 @@ class CompiledPGroup:
         large) `elements` list as the generating set would itself cost
         O(|elements|^2); pass already_closed=False to fall back to
         computing it the slow way for an arbitrary (not necessarily closed)
-        input.  Tries random subsets of increasing size first (fast: for a
-        rank-r subgroup, a handful of random elements generate it with high
-        probability once the subset size reaches about r), falling back to
-        a greedy walk only if that fails."""
+        input.
+
+        Walks the elements in a fixed random order, incrementally extending
+        a running generating set with `_closure_extend` whenever the next
+        element is not yet in the span.  For a rank-r subgroup this needs
+        only about r steps (Burnside basis theorem: random elements span the
+        Frattini quotient quickly), and -- unlike re-running `closure` from
+        scratch at every candidate size, as an earlier version of this
+        function did -- every step's cost is proportional only to the
+        elements *newly* discovered at that step, not to the size of the
+        subgroup built up so far.  This is what makes the candidate
+        generation in protoessential.py scale to subgroups of order into the
+        tens of thousands (needed for the order-5^7 showcase group), where
+        the old quadratic-in-candidate-size approach did not."""
         elements = list(elements)
         if not elements:
             return []
@@ -429,41 +521,37 @@ class CompiledPGroup:
         if len(target) == 1:
             return []
         rng = random.Random(0)
-        for size in range(1, min(len(elements), 16) + 1):
-            for _ in range(3):
-                subset = rng.sample(elements, size)
-                if set(self.closure(subset)) == target:
-                    return subset
+        shuffled = list(elements)
+        rng.shuffle(shuffled)
         chosen: List[int] = []
-        have = {self.identity_index}
-        for e in elements:
+        have: set = {self.identity_index}
+        for e in shuffled:
             if e in have:
                 continue
+            have = self._closure_extend(have, chosen, e)
             chosen.append(e)
-            have = set(self.closure(chosen))
-            if have == target:
+            if len(have) == len(target):
                 break
         return chosen
 
     def closure(self, gens: Sequence[int]) -> List[int]:
         """The subgroup generated by the given element indices, as a sorted
-        list of indices.  Standard closure-by-flooding: repeatedly multiply
-        every known element by every generator (left and right) until no new
-        elements appear.  Correct for any finite group; fast here because
-        `mul` is table-driven."""
-        seen = {self.identity_index}
-        queue = [self.identity_index]
+        list of indices.  Standard closure-by-flooding (repeatedly multiply
+        every known element by every generator, left and right, until no
+        new elements appear -- correct for any finite group), via the
+        vectorised wave-BFS `_flood`: every round costs O(n) NumPy array
+        operations per generator regardless of the current frontier size,
+        rather than one Python-level `mul` call per (element, generator)
+        pair, which is what lets this stay fast even when the subgroup
+        generated runs into the thousands of elements."""
+        order = self.order
+        mask = np.zeros(order, dtype=bool)
+        mask[self.identity_index] = True
         gens = list(gens)
-        qi = 0
-        while qi < len(queue):
-            e = queue[qi]
-            qi += 1
-            for g in gens:
-                for ee in (self.mul(e, g), self.mul(g, e)):
-                    if ee not in seen:
-                        seen.add(ee)
-                        queue.append(ee)
-        return sorted(seen)
+        if gens:
+            frontier = np.array([self.identity_index], dtype=np.int64)
+            self._flood(mask, frontier, gens)
+        return np.nonzero(mask)[0].tolist()
 
     def normal_closure(self, gens: Sequence[int], by: Optional[Sequence[int]] = None) -> List[int]:
         """Normal closure of <gens> under conjugation by the generators `by`

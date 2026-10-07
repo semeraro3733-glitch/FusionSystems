@@ -155,6 +155,18 @@ def central_series_candidates(pres: PCPresentation, G: Optional[CompiledPGroup] 
         kernel_gen_idx = [G.gen_index[g] for g in range(k, pres.n)]
         pad = (0,) * (G.n - k)
         n_this_section = 0
+        # Many classes (e.g. differing only by which F_p-scalar multiple of
+        # x their representative is) lift to *literally the same* subgroup
+        # of S -- same frozenset of members, not just S-conjugate.  Group by
+        # that exact match first (cheap: `members` only needs the already
+        # fast, vectorized `centralizer`/`lift_subgroup`, no generating set)
+        # and call the comparatively expensive `small_generating_set` once
+        # per *distinct* subgroup rather than once per class.  At the top
+        # section of an extraspecial group this is a guaranteed (p-1)-fold
+        # reduction in the number of (the dominant cost's) calls, and is
+        # exact -- never a source of missed candidates, since the reused
+        # generating set still generates the identical member set.
+        seen_members: Dict[frozenset, Tuple[int, ...]] = {}
         for cls in classes:
             rep = cls[0]
             if Qg.order_of(rep) != p:
@@ -164,20 +176,24 @@ def central_series_candidates(pres: PCPresentation, G: Optional[CompiledPGroup] 
                 continue  # rep is central in Q: the lifted candidate is all of S, excluded anyway
             n_this_section += 1
             members = frozenset(lift_subgroup(G, k, Qg, Hq))
-            # a generating set: the kernel's own generators, plus lifts of a
-            # small generating set of Hq = C_Q(rep) (Hq need not be cyclic,
-            # e.g. an elementary abelian hyperplane, so a single lifted
-            # element is not always enough).
-            Hq_gens = Qg.small_generating_set(Hq)
-            lifts = [G.index_of[Qg.elements[h] + pad] for h in Hq_gens]
-            gens = tuple(kernel_gen_idx + lifts)
-            if validate:
-                assert set(G.closure(list(gens))) == set(members), (
-                    "generating set does not generate the full lifted candidate"
-                )
+            gens = seen_members.get(members)
+            if gens is None:
+                # a generating set: the kernel's own generators, plus lifts
+                # of a small generating set of Hq = C_Q(rep) (Hq need not be
+                # cyclic, e.g. an elementary abelian hyperplane, so a single
+                # lifted element is not always enough).
+                Hq_gens = Qg.small_generating_set(Hq)
+                lifts = [G.index_of[Qg.elements[h] + pad] for h in Hq_gens]
+                gens = tuple(kernel_gen_idx + lifts)
+                seen_members[members] = gens
+                if validate:
+                    assert set(G.closure(list(gens))) == set(members), (
+                        "generating set does not generate the full lifted candidate"
+                    )
             candidates.append(Candidate(members=members, gens=gens))
         if verbose:
-            print(f"  section S/L_{k} (order {Qg.order}): {n_this_section} order-{p} classes "
+            print(f"  section S/L_{k} (order {Qg.order}): {n_this_section} order-{p} classes, "
+                  f"{len(seen_members)} distinct subgroups "
                   f"(running total {len(candidates)} candidates, {time.time()-t0:.1f}s elapsed)",
                   flush=True)
     return candidates

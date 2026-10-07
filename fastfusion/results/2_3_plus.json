@@ -1,0 +1,23 @@
+{
+  "label": "2_3_plus",
+  "order": 8,
+  "p": 2,
+  "n": 3,
+  "time_seconds": 0.0016551017761230469,
+  "num_raw_candidates": 2,
+  "num_s_centric_candidates": 2,
+  "num_cheap_pass": 2,
+  "num_aut_orbits": 1,
+  "num_orbits_leaving_candidates": 0,
+  "num_proto_essential_aut_classes": 1,
+  "num_proto_essential_s_classes": 2,
+  "classes": [
+    {
+      "order": 4,
+      "log_p_order": 2.0,
+      "index_in_S": 2,
+      "out_S_order": 2,
+      "normal_in_S": true
+    }
+  ]
+}

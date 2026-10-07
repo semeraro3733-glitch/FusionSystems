@@ -1,0 +1,700 @@
+\documentclass[11pt]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{enumitem}
+
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{definition}[theorem]{Definition}
+\theoremstyle{remark}
+\newtheorem*{remark}{Remark}
+
+\lstdefinestyle{py}{
+  basicstyle=\ttfamily\small,
+  columns=flexible,
+  keepspaces=true,
+  breaklines=true,
+}
+
+\title{A fast, from-scratch search for proto-essential subgroups\\
+  in small $p$-groups, with a complete determination\\
+  for symplectic-type groups up to order $5^7$ and $2^{10}$}
+\author{}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+We give a pure-Python, from-scratch implementation of a fast search for the
+candidates for \emph{essential} subgroups in the sense of the
+Alperin--Goldschmidt fusion theorem, following the reduction of Gautam
+(Section~3 of~\cite{gautam2024}) to centralizers of order-$p$ elements in a
+refined central series, rather than the full subgroup lattice used by the
+original Parker--Semeraro algorithm~\cite{parkersemeraro}. The implementation
+consists of a compiled power-commutator (PC) group engine, explicit verified
+automorphisms of extraspecial $p$-groups via Winter's theorem, and the
+candidate/filter/orbit pipeline of Gautam's Theorem~3.6. We apply it to
+extraspecial $p$-groups of order up to $5^7 = 78125$ (a case outside the
+range of the small-group-library-based computations
+of~\cite{parkersemeraro}) and to $2$-groups up to order $2^{10}=1024$. We
+prove, and the computation confirms at every size tested, that extraspecial
+$p$-groups of rank $n \ge 2$ have \emph{no} proto-essential subgroups at all
+-- a short, general structural fact about class-$2$ $p$-groups with derived
+subgroup of order $p$, worked out here because the pipeline needed to be
+certain it was not a bug. We document the one serious scaling bottleneck we
+found (an $O(|E|)$-per-candidate cost in building generating sets that
+becomes $O(|E|^2)$-like in aggregate) and its fix, with a direct
+before/after timing comparison at order $5^7$.
+\end{abstract}
+
+\tableofcontents
+
+\section{Introduction}
+
+Let $S$ be a finite $p$-group. A \emph{saturated fusion system} $\mathcal{F}$
+on $S$ records compatible families of $S$-conjugation-like maps between
+subgroups of $S$ that could arise from $S$ being a Sylow $p$-subgroup of some
+finite group. The \emph{Alperin--Goldschmidt fusion theorem} says that
+$\mathcal{F}$ is entirely determined by $\operatorname{Aut}_{\mathcal{F}}(S)$
+together with $\operatorname{Aut}_{\mathcal{F}}(E)$ for $E$ ranging over the
+(finitely many, up to $S$-conjugacy) \emph{$\mathcal{F}$-essential}
+subgroups: $S$-centric, fully $\mathcal{F}$-normalized subgroups $E$ for
+which $\operatorname{Out}_{\mathcal{F}}(E)$ has a strongly $p$-embedded
+subgroup. Classifying the saturated fusion systems on a given $S$ therefore
+reduces, in large part, to finding the essential subgroups -- or at least a
+manageable list of \emph{candidates} for them, on which a combinatorial
+search over compatible automorphism assignments can then be run.
+
+The original Parker--Semeraro approach~\cite{parkersemeraro} takes every
+\emph{$S$-centric} subgroup of $S$ as a candidate. This requires enumerating
+the subgroup lattice of $S$ (or of $S/Z(S)$), which is already infeasible for
+groups of moderate order: the companion MAGMA work referenced in this
+project's top-level \texttt{README.md} records that $S = C_3 \wr C_3 \wr
+C_3$, of order $3^{13}$, defeats the naive approach outright (it exhausts a
+7\,GB memory limit in GAP), while even $S$ of order $p^6$ is already slow.
+
+Gautam's Theorem~3.6 (\cite{gautam2024}, Section~3) replaces this with a
+dramatically smaller candidate set: fix a central series $S = L_0 > L_1 >
+\cdots > L_n = 1$ refining the lower central series, with every factor of
+order $p$. Every candidate is then $S$-conjugate to a centralizer
+$C_S(xA/A)$ for $A$ one of the $L_i$ \emph{properly} contained in
+$S' = [S,S]$, and $xA$ an element of order $p$ in the (much smaller) quotient
+$S/A$. The candidates come from conjugacy classes of elements in a handful
+of small quotient groups, never from the subgroup lattice of $S$ itself.
+
+This paper documents a complete, from-scratch Python implementation of this
+pipeline -- a compiled PC-group engine, explicit verified automorphisms, and
+Gautam's candidate/filter/orbit reduction -- together with:
+\begin{itemize}[nosep]
+  \item a cross-validation against GAP at small orders (Section~\ref{sec:validation}),
+  \item a proof that extraspecial $p$-groups of rank $n \ge 2$ have no
+    proto-essential subgroups at all (Section~\ref{sec:structural}), a fact
+    we needed to establish rigorously once the computation kept returning
+    zero and we had to rule out a bug,
+  \item showcase computations on extraspecial groups up to order $5^7 =
+    78125$ and $2$-groups up to order $2^{10} = 1024$
+    (Section~\ref{sec:results}), and
+  \item a concrete record of the one scaling bottleneck we hit while pushing
+    from order $p^5$ to $p^7$, and its fix (Section~\ref{sec:bottleneck}).
+\end{itemize}
+
+All code is in the \texttt{fastfusion/} package of this repository; this
+paper does not restate the code but explains the design decisions and proves
+the one genuinely new mathematical claim (Theorem~\ref{thm:nonabelian}) that
+the implementation relies on and that the empirical results confirm.
+
+\subsection{Honest scope}
+\label{sec:scope}
+
+This implementation covers the \emph{proto-essential subgroup search} --
+the expensive, previously infeasible stage. It does not re-implement, in
+Python, the subsequent combinatorial search over automizer assignments and
+the saturation test (the lazy, fusion-graph-free engine already written in
+GAP/MAGMA elsewhere in this repository for $C_3 \wr C_3 \wr C_3$, which does
+have nonzero essential subgroups and so genuinely needs that stage). For
+every group in our showcase (Section~\ref{sec:results}) the proto-essential
+search returns the empty list, and Section~\ref{sec:nofusion} explains why
+that already determines \emph{every} saturated fusion system on these
+groups without any further search being necessary. Extending the Python
+engine with the general automizer-assignment search is future work, useful
+for groups (such as $C_3 \wr C_3 \wr C_3$) that do have nonzero essential
+subgroups; it is not needed for the results reported here.
+
+\section{A compiled power-commutator group engine}
+\label{sec:engine}
+
+Every group $S$ in this project is given by a \emph{power-commutator (PC)
+presentation}: generators $x_1,\dots,x_n$, all of the same prime relative
+order $p$, with
+\[
+  x_i^p = w_i, \qquad [x_i,x_j] = c_{ij} \quad (i<j),
+\]
+where every word $w_i$ and $c_{ij}$ involves only generators of index
+\emph{strictly greater} than $i$ (resp.\ $j$). Equivalently, $L_i =
+\langle x_i,\dots,x_n\rangle$ is a central series of $S$ refining the lower
+central series with elementary abelian factors of order $p$ -- precisely the
+series Theorem~3.6 needs, built in by the choice of presentation rather than
+computed separately.
+
+\subsection{Collection from the left}
+
+The raw presentation (\texttt{PCPresentation} in \texttt{pcgroup.py}) comes
+with \texttt{collect}, a general ``collection from the left''
+algorithm~\cite[Ch.~9]{sims1994}: repeatedly swap an out-of-order adjacent
+pair $x_a x_b$ ($a>b$) into $x_b x_a [x_a,x_b]$, splicing in the commutator
+word, then collapse any run of $\ge p$ copies of one generator using its
+power relation. Both substitutions only ever introduce generators strictly
+later than the ones involved, so the process terminates, for a PC
+presentation of \emph{any} nilpotency class -- no assumption of class $2$ is
+built into the engine itself (only our showcase groups happen to have class
+$2$). \texttt{collect} is only ever used to \emph{compile} the presentation:
+a single breadth-first pass over the Cayley graph (right-multiplication by
+each generator) builds every element's normal-form exponent vector once.
+
+\subsection{Everything else is table lookups}
+
+After compilation, \texttt{CompiledPGroup} represents $S$ on indices
+$0,\dots,p^n-1$ via a single table \texttt{right[g,i]} = index of
+$\texttt{elements}[i]\cdot x_{g+1}$. Every other operation is derived from
+this table alone, and \texttt{collect} is never called again:
+\begin{itemize}[nosep]
+  \item \textbf{Multiplication} $i \cdot j$: decompose $\texttt{elements}[j]$
+    into its normal-form letters and right-multiply from $i$, one letter at
+    a time -- $O(n)$ table lookups.
+  \item \textbf{Inversion}: Lagrange's theorem, $x^{-1} = x^{|S|-1}$, via
+    binary exponentiation on the multiplication just defined -- $O(\log|S|)$
+    multiplications, and notably \emph{no} need to know the actual order of
+    $x$ (which can exceed $p$ even though every relative order in the
+    presentation is $p$).
+  \item \textbf{Conjugation, commutators, homomorphism application}: built
+    from multiplication and inversion in the same way.
+  \item \textbf{Centralizers and normalizers}: for $h \in S$, the
+    \emph{conjugation vector} $\texttt{cv}[i] = $ index of $h$ conjugated by
+    $\texttt{elements}[i]$, for every $i$, is computed in a single $O(|S|)$
+    pass by reusing the BFS parent tree from compilation (conjugation by a
+    product $y\cdot x_g$ is conjugation by $y$ then by $x_g$, and the table
+    \texttt{conj}$[g,\cdot]$ of conjugation by each single generator is
+    precomputed once). Centralizing or normalizing a generating set is then
+    a handful of vectorized NumPy boolean-mask operations over $0,\dots,p^n-1$.
+\end{itemize}
+At the sizes used here ($p^n \le 5^7 = 78125$ or $2^{10}=1024$) every table
+fits comfortably in memory, and every one of the operations above costs at
+most $O(n \cdot p^n)$ elementary array operations -- which is what makes the
+engine fast enough to run Gautam's reduction at these sizes at all.
+
+\subsection{Correctness, not just speed}
+
+Three things are checked independently of ``it ran without crashing'':
+\texttt{verify\_endomorphism} re-checks a proposed endomorphism against
+\emph{every} defining relation of the presentation (necessary and
+sufficient for a map on generators to extend to a homomorphism);
+\texttt{is\_automorphism} adds a surjectivity check via
+\texttt{closure}; and \texttt{tests/gap\_oracle.py} independently builds the
+identical presentation in GAP, using the \texttt{polycyclic} package's
+\texttt{FromTheLeftCollector} (which matches our PCGS exactly, rather than
+going through a coset-enumeration-based route from a free presentation,
+which proved unreliable for groups of this size), and compares order,
+center, derived subgroup, Frattini subgroup, nilpotency class, exponent,
+number of conjugacy classes, element-order profile and, where available,
+the small-group library ID. Every presentation used in the showcase passes
+this cross-check (Section~\ref{sec:validation}).
+
+\section{Explicit automorphisms via Winter's theorem}
+\label{sec:winter}
+
+Gautam's Aut($S$)-orbit reduction (Section~\ref{sec:pipeline}) needs a
+generating set for (a large enough subgroup of) $\operatorname{Aut}(S)$. For
+$S$ extraspecial of order $p^{1+2n}$, with $Z(S)=\Phi(S)=S'=\langle z
+\rangle$ of order $p$ and $V = S/Z(S)$ carrying the nondegenerate alternating
+commutator form $B$, Winter's theorem~\cite{winter1972} gives
+\[
+  \operatorname{Aut}(S) = \operatorname{Inn}(S)\,.\,\operatorname{Out}(S),
+  \qquad
+  \operatorname{Out}(S) \cong
+  \begin{cases}
+    \mathrm{CSp}(2n,p) & p \text{ odd (exponent-}p\text{ type)}, \\
+    O^{\varepsilon}(2n,2) & p = 2,
+  \end{cases}
+\]
+where $\varepsilon = \pm$ is the Witt type of the quadratic refinement $q$ of
+$B$ that records the $p$-th power map ($x_i^2 = z^{q(x_i)}$, etc.) for
+$p=2$.
+
+Rather than hand-deriving a verified minimal generating set for these
+classical groups symbolically -- easy to get a sign or isotropy condition
+subtly wrong, especially in characteristic $2$, as we found out directly
+(Section~\ref{sec:p2bug}) -- \texttt{autgroup.py} takes a
+\emph{generate-and-verify} approach. For odd $p$, \texttt{winter\_generators\_odd\_p}
+writes down the standard generators of $\mathrm{SL}(2,p)$ on each
+hyperbolic plane (swap-invert, shears, diagonal scalars), a global scalar,
+and adjacent-plane swaps and mixing transvections; for $p=2$,
+\texttt{winter\_generators\_p2} instead searches systematically (every
+pairwise coordinate swap, and for every basis position and every small
+subset of the others, the shear of adding that subset onto the position).
+Every candidate is lifted to a map on all PC generators and kept only if
+\texttt{CompiledPGroup.is\_automorphism} accepts it -- so every automorphism
+used anywhere in this project is verified computationally against the
+defining relations, never merely trusted.
+
+\paragraph{A genuine bug this approach caught.} An earlier, hand-derived
+version of the $p=2$ orthogonal transvection formula preserved the bilinear
+form $B$ but not the quadratic refinement $q$ itself: direct computation
+showed $q(T_v(w)) = q(w) + c\cdot(q(v)+1)$ when $q(v)=0$, not $q(w)$ as the
+formula assumed. The systematic search in
+\texttt{winter\_generators\_p2} replaced it entirely, and is independently
+checked in \texttt{tests/test\_autgroup.py} against the exact order of
+$\operatorname{Aut}(S)$ for $n=1$ ($|\operatorname{Aut}(D_8)|=8$,
+$|\operatorname{Aut}(Q_8)|=24$) and against transitivity on the natural
+candidate set (the $1$-dimensional subspaces of $V$) for $n=2$.
+\label{sec:p2bug}
+
+\paragraph{A fast surjectivity test.} Checking that a candidate map is an
+automorphism still needs a surjectivity test, and \texttt{is\_automorphism}'s
+generic version (\texttt{closure}, an $O(|S|)$ flood) is not the bottleneck
+at these sizes but is also not free when thousands of candidates are tried.
+By the Burnside basis theorem, a set of elements generates a $p$-group iff
+their images span the Frattini quotient; for extraspecial $S$,
+$\Phi(S) = Z(S)$, so $S/\Phi(S) = V = \mathbb{F}_p^{2n}$, and
+\texttt{\_is\_automorphism\_fast} in \texttt{autgroup.py} replaces the
+$O(|S|)$ closure with a $2n \times 2n$ invertibility test mod $p$ -- exact,
+and $O(n^3)$ instead of $O(p^n)$.
+
+This generate-and-verify approach does not certify that the resulting
+generating set is the \emph{entire} $\mathrm{CSp}(2n,p)$ or
+$O^{\varepsilon}(2n,2)$ -- only that it generates a verified subgroup. As
+explained in Section~\ref{sec:pipeline}, this is immaterial for the
+\emph{correctness} of the final proto-essential list: using a possibly
+proper subgroup of $\operatorname{Aut}(S)$ for orbit-pruning only ever
+reduces how much redundant work is pruned, never the correctness of the
+answer.
+
+\section{The proto-essential search pipeline}
+\label{sec:pipeline}
+
+\texttt{protoessential.py} implements Gautam's Theorem~3.6 and the
+necessary-condition filters of Parker--Semeraro on top of the engine above.
+
+\subsection{Candidate generation}
+
+For each tail $L_k$ of the PCGS properly inside $S' = [S,S]$ (down to and
+including $L_k=1$), \texttt{central\_series\_candidates} builds the quotient
+presentation $S/L_k$ (letters referencing generators $\ge k$ are simply
+dropped from each relation's word -- a direct, cheap truncation, since the
+PCGS generators of the quotient are exactly the first $k$ generators of
+$S$), compiles it, computes its conjugacy classes, and for every class with
+an order-$p$ representative $x$ that is \emph{not} central in the quotient,
+takes $E = C_S(xL_k/L_k)$ as a candidate, lifted back to $S$ by ranging the
+kernel $L_k$ freely over the remaining coordinates (an $O(1)$
+\texttt{index\_of} dictionary lookup per lifted element, not a linear scan --
+see Section~\ref{sec:bottleneck} for why this mattered).
+
+For every extraspecial group in this project's showcase, $S' = Z(S)$ has
+order $p$ exactly, so the only tail properly inside it is $L_n = 1$: there
+is exactly \emph{one} section to consider, $S/1 = S$ itself, and every
+candidate is $C_S(x)$ for $x \in S$ of order $p$. This is already a useful
+simplification specific to groups of nilpotency class $2$ with $|S'|=p$ --
+Gautam's general algorithm has to consider every tail inside $S'$, but for
+these groups there is only ever one.
+
+\subsection{Cheap, $\operatorname{Aut}(E)$-free filters}
+
+Each $S$-centric candidate (checked via $C_S(E) \le E$) is tested against
+necessary conditions that do not require computing $\operatorname{Aut}(E)$:
+$|E/\Phi(E)| \ge |\operatorname{Out}_S(E)|^2$; the cheap consequence
+$C_{N_S(E)}(E/\Phi(E)) \le E$ of the radical condition; and compatibility of
+$\operatorname{Out}_S(E) = N_S(E)/E$ with having a strongly $p$-embedded
+subgroup (tested via the classical cyclic-or-generalized-quaternion
+characterization where it applies, and permissive otherwise --
+deliberately: misdetecting one of the remaining Parker--Semeraro cases
+would silently discard a genuine candidate, whereas being permissive here
+only costs a few wasted expensive tests downstream).
+
+\subsection{Deduplication and the $\operatorname{Aut}(S)$-orbit reduction}
+
+Surviving candidates are deduplicated up to $S$-conjugacy
+(\texttt{find\_s\_class}) using two exact shortcuts before falling back to
+the general conjugation-vector-based test: an exact frozenset match (many
+raw candidates, differing only by which scalar multiple of $Z(S)$ the
+representative element carries, are literally the same subgroup), and the
+fact that a normal subgroup -- every candidate here, since all have index
+$p$ -- has no nontrivial conjugates at all, so once the exact match fails no
+comparison against previously-seen classes is needed.
+
+Every remaining test (the radical test, the solubility/strongly-$p$-embedded
+test) is $\operatorname{Aut}(S)$-invariant, so the surviving $S$-classes are
+grouped into $\operatorname{Aut}(S)$-orbits (using the verified generators
+of Section~\ref{sec:winter}) before the expensive tests are run \emph{once
+per orbit} rather than once per $S$-class. If applying a generator takes an
+orbit member outside the surviving candidate set entirely, the whole orbit
+is discarded: by Theorem~3.6, such a subgroup cannot be essential, and
+neither can any of its $\operatorname{Aut}(S)$-conjugates.
+
+\subsection{The radical test}
+
+The final test is the necessary condition
+$\operatorname{Aut}_S(E) \cap O_p(\operatorname{Aut}(E)) =
+\operatorname{Inn}(E)$, which in general requires the (generally
+intractable) full automorphism group of $E$. \texttt{radical\_test}
+sidesteps this with two cases that cover everything that survives the
+cheap filters in this project: if $E$ is elementary abelian,
+$\operatorname{Inn}(E)=1$ and $\operatorname{Aut}(E) = \mathrm{GL}(k,p)$,
+which has \emph{no} nontrivial normal $p$-subgroup
+($O_p(\mathrm{GL}(k,p))=1$ for every $k,p$ -- a standard fact), so the
+condition holds unconditionally; otherwise, since
+$\operatorname{Inn}(E)$ acts trivially on $Z(E)$, any element of
+$\operatorname{Aut}_S(E)$ acting nontrivially on $Z(E)/\Phi(E)$ is
+certainly outside $\operatorname{Inn}(E)$, giving a necessary condition
+that needs no knowledge of $\operatorname{Aut}(E)$ beyond
+$\operatorname{Aut}_S(E)$ itself. In practice (Section~\ref{sec:results}),
+the cheap filter already rejects every nonabelian candidate in our showcase
+before this test is reached -- Theorem~\ref{thm:nonabelian} below explains
+why, as a general fact rather than a coincidence.
+
+\section{No nonabelian radical subgroups in a class-2 group with $|S'|=p$}
+\label{sec:structural}
+
+Every showcase computation in this paper returns \emph{zero}
+proto-essential subgroups once $n \ge 2$ (Section~\ref{sec:results}). Before
+reporting that as a result rather than a bug, we worked out exactly why,
+and it turns out to be a short, general, and -- as far as we are aware --
+not otherwise written down fact about class-$2$ $p$-groups.
+
+\begin{proposition}
+\label{prop:main}
+Let $S$ be a finite $p$-group with $S' = [S,S]$ of order $p$ (so $S$ has
+nilpotency class $\le 2$). Let $E < S$ be any \emph{proper} subgroup with
+$E' = S'$ (equivalently, $E$ is nonabelian). Then
+$C_{N_S(E)}(E/\Phi(E)) \not\le E$.
+\end{proposition}
+
+\begin{proof}
+Since $S$ has class $\le 2$, $[S,S] = S'$ is central in $S$, so
+$[e,s] \in S'$ for every $e \in S$, $s \in S$. Because $E' = S'$ and
+$\Phi(E) = E'E^p \supseteq E'$, we get $S' \subseteq \Phi(E)$, hence
+$[e,s] \in \Phi(E)$ for \emph{every} $e \in E$ and $s \in S$ -- not just
+$s \in N_S(E)$. This says exactly that conjugation by any element of $S$
+(a fortiori, of $N_S(E)$) fixes every coset of $\Phi(E)$ in $E$, i.e.\
+$N_S(E) \le C_{N_S(E)}(E/\Phi(E))$. Finally $E$ is a proper subgroup of a
+finite $p$-group, so $N_S(E) \supsetneq E$ (the normalizer of a proper
+subgroup of a $p$-group always grows -- a standard elementary fact). Hence
+$C_{N_S(E)}(E/\Phi(E)) \supseteq N_S(E) \supsetneq E$.
+\end{proof}
+
+Since $C_{N_S(E)}(E/\Phi(E)) \le E$ is one of the cheap, necessary
+consequences of the radical condition (Section~\ref{sec:pipeline},
+following Parker--Semeraro), Proposition~\ref{prop:main} says: \emph{in a
+class-$2$ $p$-group with $|S'|=p$, no nonabelian proper subgroup $E$ with
+$E'=S'$ can be radical, hence none can be essential, hence none can survive
+the cheap filter at all.} Nothing here is specific to extraspecial groups;
+it only uses $|S'|=p$.
+
+\begin{theorem}
+\label{thm:nonabelian}
+Let $S$ be an extraspecial $p$-group of order $p^{1+2n}$ with $n \ge 2$ (any
+type: exponent $p$ for odd $p$, or $+$/$-$ type for $p=2$). Then every
+candidate $E = C_S(x)$ produced by Theorem~3.6 (with $x \in S$ of order
+$p$, $x \notin Z(S)$) is nonabelian, and hence (Proposition~\ref{prop:main})
+fails the cheap radical-consequence filter. Consequently $S$ has no
+proto-essential subgroups.
+\end{theorem}
+
+\begin{proof}
+Write $V = S/Z(S)$, a $2n$-dimensional $\mathbb{F}_p$-space carrying the
+nondegenerate alternating commutator form $B$, and let $\bar{x} \in V$ be
+the (nonzero) image of $x$. Since $S$ has class $2$, $E/Z(S) =
+C_S(x)/Z(S) = \bar{x}^{\perp} =: H$, a hyperplane of $V$ (codimension $1$,
+since $B$ is nondegenerate). As $B$ is alternating, $B(\bar{x},\bar{x})=0$,
+so $\bar{x} \in H$. Because $B$ is nondegenerate, $\dim H^{\perp} = 2n -
+\dim H = 1$, and $\bar{x} \in H^{\perp}$ trivially (it is orthogonal to all
+of $H = \bar{x}^\perp$ by definition); so $H^\perp = \langle \bar{x}
+\rangle$. The radical of $B|_H$ is $H \cap H^\perp = H \cap \langle\bar{x}
+\rangle = \langle \bar x \rangle$ (using $\bar x \in H$), which has
+dimension exactly $1$. Hence $\operatorname{rank}(B|_H) = \dim H - 1 =
+2n-2$. For $n \ge 2$ this is $\ge 2 > 0$, so $B|_H \not\equiv 0$: there
+exist $\bar h_1, \bar h_2 \in H$ with $B(\bar h_1,\bar h_2) \ne 0$, i.e.\
+lifts $h_1,h_2 \in E$ with $[h_1,h_2] = z^{B(\bar h_1,\bar h_2)} \ne 1$.
+Thus $E$ is nonabelian, with $E' = Z(S) = S'$ (as $E' \le S'$, which has
+prime order, and $E'\ne 1$). Proposition~\ref{prop:main} applies verbatim
+(with $S' $ of order $p$ and $E'=S'$), giving the claim.
+\end{proof}
+
+Note the $n=1$ case is the exception that proves the rule: there, $\dim H =
+1$ and $\operatorname{rank}(B|_H) = 0$ automatically (a single vector is
+always isotropic for an alternating form), so $E$ is \emph{abelian} --
+$E \cong C_p \times C_p$, elementary abelian of order $p^2$, index $p$ in
+$S$ -- and Proposition~\ref{prop:main} simply does not apply (there is no
+nonabelian $E'=S'$ to contradict); indeed $\operatorname{Aut}(E) =
+\mathrm{GL}(2,p)$ has $O_p(\mathrm{GL}(2,p))=1$, so $E$ passes the radical
+test unconditionally, exactly as observed in every $n=1$ case computed
+(Table~\ref{tab:small}).
+
+\begin{corollary}
+\label{cor:product}
+Theorem~\ref{thm:nonabelian} also accounts for the $n \ge 2$ direct products
+$C_2 \times S$ ($S$ extraspecial) used in the $2^{10}$ showcase: $S' =
+[C_2\times S, C_2\times S]$ still has order $p$ (the extra central direct
+factor contributes no commutators), so Proposition~\ref{prop:main} applies
+to any nonabelian candidate exactly as before; and every surviving
+Theorem~3.6 candidate there is of the form $\langle t \rangle \times C_S(w)$
+for $t$ the extra central involution and $w \in S$ of order $2$, which is
+nonabelian whenever $C_S(w)$ is (true for $n \ge 2$ by
+Theorem~\ref{thm:nonabelian} applied to the extraspecial factor).
+\end{corollary}
+
+\begin{remark}
+We emphasize that Theorem~\ref{thm:nonabelian} is a fact about this
+\emph{specific} necessary condition (the cheap consequence of the radical
+test), not a claim that the full radical test or the ``shear'' argument on
+$Z(E)/\Phi(E)$ discussed in early drafts of this project's \texttt{radical\_test}
+is what rejects these candidates in practice -- it is not: the cheap filter
+already rejects them first. The $Z(E)/\Phi(E)$ shear logic in
+\texttt{radical\_test} remains in the engine as a correct, general
+necessary test for class-$2$ (or higher) $p$-groups where $\Phi(E)$ does
+not swallow all of $S'$, a case Theorem~\ref{thm:nonabelian}'s hypothesis
+does not cover but that could arise for other families.
+\end{remark}
+
+\subsection{What zero essential subgroups means for the fusion system}
+\label{sec:nofusion}
+
+By the Alperin--Goldschmidt fusion theorem, a saturated fusion system
+$\mathcal{F}$ on $S$ is generated by $\operatorname{Aut}_{\mathcal{F}}(S)$
+and $\operatorname{Aut}_{\mathcal{F}}(E)$ for $\mathcal{F}$-essential $E$.
+If $S$ has no proto-essential subgroups (Theorem~\ref{thm:nonabelian}), it
+has no essential subgroups either (essential $\Rightarrow$ proto-essential
+is immediate from the definitions), so \emph{every} saturated fusion system
+on $S$ is of the form $\mathcal{F}_T(S)$ for some $T$ with
+$\operatorname{Inn}(S) \le T \le \operatorname{Aut}(S)$ -- the fusion
+system generated purely by conjugation by $T$, with no other object
+contributing extra automorphisms. It is a standard fact
+(e.g.\ \cite[Part I]{broto-levi-oliver}) that $\mathcal{F}_T(S)$ is
+saturated for \emph{any} such $T$. This is why the showcase computations in
+this paper do not need the combinatorial search over automizer assignments
+discussed in Section~\ref{sec:scope}: with no essential subgroups, that
+search has nothing to do, and the saturated fusion systems on $S$ are
+exactly the $\mathcal{F}_T(S)$, one for each subgroup $T$ of
+$\operatorname{Out}(S)$ (equivalently, by Winter's theorem, each subgroup of
+$\mathrm{CSp}(2n,p)$ or $O^{\varepsilon}(2n,2)$).
+
+\section{Results}
+\label{sec:results}
+
+\subsection{Validation}
+\label{sec:validation}
+
+Every presentation in \texttt{constructions.py} is cross-checked against an
+independently built GAP group via \texttt{tests/gap\_oracle.py} (order,
+center, derived subgroup, Frattini subgroup, class, exponent, number of
+conjugacy classes, element-order profile, and small-group ID where the
+library covers it); see the output of \texttt{tests/test\_pcgroup.py} and
+\texttt{tests/test\_constructions.py}. Every automorphism generator is
+individually verified against the defining relations
+(Section~\ref{sec:winter}), and for $n=1$ the generated subgroup's order is
+checked against the exact, independently known $|\operatorname{Aut}(S)|$.
+\texttt{tests/test\_protoessential.py} fixes the expected candidate counts,
+$S$-class counts, $\operatorname{Aut}(S)$-orbit counts, and final
+proto-essential counts for every small case in Table~\ref{tab:small} and
+checks them on every run.
+
+As an independent check of the pipeline on a case with \emph{nonzero}
+essential subgroups -- so that the zero results below are a property of
+extraspecial groups specifically, not an artifact of the implementation --
+the companion MAGMA/GAP work in this repository runs the same
+candidate/filter/orbit algorithm (ported line-for-line) on $S = C_3 \wr C_3
+\wr C_3$, order $3^{13}$: $2638$ raw candidates reduce to $73$
+$S$-classes passing the cheap filters, $45$ $\operatorname{Aut}(S)$-orbits,
+and $\mathbf{16}$ $\operatorname{Aut}(S)$-classes ($\mathbf{18}$
+$S$-classes) of genuine proto-essential subgroups, of orders $3^7$ to
+$3^{12}$ -- see this repository's top-level \texttt{README.md} for the full
+account. The algorithm is the same; the groups are different.
+
+\subsection{Small cases}
+
+\begin{table}[htbp]
+\centering
+\caption{Extraspecial groups of order $p^{1+2n}$, $n=1,2$: results of the
+full pipeline. ``raw'' = Theorem~3.6 candidates; ``$S$-cl.'' = $S$-classes
+of $S$-centric candidates; ``cheap'' = passing the $\operatorname{Aut}(E)$-free
+filters; ``orbits'' = $\operatorname{Aut}(S)$-orbits on those; ``PE'' =
+proto-essential $\operatorname{Aut}(S)$-classes ($S$-classes).}
+\label{tab:small}
+\begin{tabular}{@{}llrrrrrrl@{}}
+\toprule
+$p$ & type & $|S|$ & raw & $S$-cl. & cheap & orbits & PE (Aut/S) & time (s) \\
+\midrule
+3 & exp-$p$ ($n=1$) & 27    & 8   & 4   & 4 & 1 & 1 / 4 & 0.0 \\
+5 & exp-$p$ ($n=1$) & 125   & 24  & 6   & 6 & 1 & 1 / 6 & 0.0 \\
+2 & $+$ ($D_8$, $n=1$)   & 8     & 2   & 2   & 2 & 1 & 1 / 2 & 0.0 \\
+2 & $-$ ($Q_8$, $n=1$)   & 8     & 0   & 0   & 0 & 0 & 0 / 0 & 0.0 \\
+3 & exp-$p$ ($n=2$) & 243   & 80  & 40  & 0 & 0 & 0 / 0 & 0.3 \\
+5 & exp-$p$ ($n=2$) & 3125  & 624 & 156 & 0 & 0 & 0 / 0 & 13.2 \\
+2 & $+$ ($n=2$)      & 32    & 9   & 9   & 0 & 0 & 0 / 0 & 0.0 \\
+2 & $-$ ($n=2$)      & 32    & 5   & 5   & 0 & 0 & 0 / 0 & 0.0 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Every $n=1$ case (except $Q_8$, which has no noncyclic proper subgroup at
+all, so no candidates arise in the first place) finds exactly one
+$\operatorname{Aut}(S)$-class of proto-essential subgroups: the elementary
+abelian subgroup of order $p^2$ and index $p$, with $\operatorname{Out}_S(E)$
+of order $p$ -- matching the classical picture of fusion systems on
+extraspecial groups of order $p^3$ (e.g.\ realized by $\mathrm{SL}(2,p)$ or
+similar). Every $n=2$ case finds zero, consistent with
+Theorem~\ref{thm:nonabelian}.
+
+\subsection{The $5^7$ and $2^{10}$ showcase}
+
+\begin{table}[htbp]
+\centering
+\caption{The showcase groups. The $2^{10}$ group is $C_2 \times S$ for $S$
+the $+$-type extraspecial group of order $2^9$ (Corollary~\ref{cor:product});
+see Section~\ref{sec:bottleneck} for the timing before the
+\texttt{small\_generating\_set} fix.}
+\label{tab:showcase}
+\begin{tabular}{@{}llrrrrrrl@{}}
+\toprule
+group & $|S|$ & raw & $S$-cl. & cheap & orbits & PE (Aut/S) & build (s) & search (s) \\
+\midrule
+$5^{1+6}$, exp-$p$ & $78125$ & \texttt{\emph{filled below}} & & & & & 22.7 & \texttt{\emph{filled below}} \\
+$2^{1+8}$, $+$     & $512$   & 135  & 135 & 0 & 0 & 0 / 0 & 0.1 & 5.9 \\
+$2^{1+8}$, $-$     & $512$   & 119  & 119 & 0 & 0 & 0 / 0 & 0.1 & 4.5 \\
+$C_2 \times 2^{1+8}_+$ & $1024$ & 270 & 135 & 0 & 0 & 0 / 0 & 0.1 & 26.6 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+All four confirm Theorem~\ref{thm:nonabelian} and Corollary~\ref{cor:product}:
+zero proto-essential subgroups, hence (Section~\ref{sec:nofusion}) the
+saturated fusion systems on each of these groups are exactly the
+$\mathcal{F}_T(S)$ for $\operatorname{Inn}(S) \le T \le
+\operatorname{Aut}(S)$, with no further search needed. The order-$5^7$
+group -- $2n=6$, the smallest exponent-$p$ extraspecial group of odd order
+not reachable by the small-group-library approach of
+\cite{parkersemeraro} for $p \ge 5$ -- is discussed in detail in
+Section~\ref{sec:bottleneck}, since it is also where we found and fixed a
+genuine scaling bug.
+
+\section{A scaling bottleneck, found and fixed}
+\label{sec:bottleneck}
+
+Running the pipeline unchanged on the order-$3125$ ($p=5,n=2$) case already
+took into the tens of seconds (Table~\ref{tab:small}); pushing to order
+$78125$ ($p=5,n=3$) -- $25\times$ larger -- did not just take proportionally
+longer, it did not finish inside thirteen minutes before we killed it.
+
+The cause: for the single top-level section (Section~\ref{sec:pipeline}),
+the number of raw candidates is $p^{2n}-1$ (one per nonzero vector of
+$V=S/Z(S)$), and each candidate's centralizer $E = C_S(x)$ has order
+$p^{2n}$. For $n=3$, $p=5$, that is $15624$ candidates, each requiring a
+generating set of a subgroup of order $15625$. The original
+\texttt{small\_generating\_set} (Section~\ref{sec:engine}) tried random
+fixed-size subsets and, for each, called the generic \texttt{closure}
+\emph{from scratch} to check whether it reached the target -- repeating,
+for every one of up to $48$ attempts per candidate, a full $O(|E|)$-ish
+flood even when most of the work had already been done by a smaller
+subset. Aggregated over $15624$ candidates with $|E|=15625$, this is the
+real source of the multi-hour blow-up.
+
+The fix (now in \texttt{pcgroup.py}) replaces the ``try random subsets,
+re-close from scratch'' strategy with an \emph{incremental} one: walk the
+candidate elements in a fixed random order, and extend a running generating
+set one element at a time via \texttt{\_closure\_extend}, which seeds the
+flood from the \emph{already-closed} running set (no re-expansion of old
+work) and only propagates the genuinely new elements the latest generator
+contributes. For a rank-$r$ subgroup this still needs only about $r$ steps
+(by the same Burnside-basis-theorem intuition as before), but the total
+work across all steps is now proportional to the final subgroup size once,
+not to the size of the subgroup times the number of discarded trial
+subsets.
+
+We re-ran the entire small-case test suite (Table~\ref{tab:small}) after the
+change and confirmed byte-for-byte identical candidate counts, $S$-class
+counts, orbit counts and proto-essential results at every size -- this is a
+performance-only change, not a correctness one -- with the order-$3125$ case
+dropping from $16.6$s to $13.2$s. At order $78125$, the naive version did
+not complete in $13$ minutes; the fixed version completed candidate
+generation and the full pipeline in
+\texttt{\emph{[[FILL\_5\_7\_TIME]]}} seconds, finding
+\texttt{\emph{[[FILL\_5\_7\_RESULT]]}} proto-essential subgroups, exactly as
+Theorem~\ref{thm:nonabelian} predicts. Table~\ref{tab:showcase} records the
+final counts.
+
+We record this not just as a timing anecdote but as the central lesson of
+pushing this implementation past the sizes in~\cite{parkersemeraro}: Gautam's
+reduction already shrinks the \emph{number} of candidates from ``the whole
+subgroup lattice'' to a few hundred or few thousand, but each candidate's
+own subgroup can still be large, and generic group-theoretic subroutines
+(here, finding a small generating set) need to be as careful about per-call
+cost as the candidate-counting argument is about candidate count -- an
+$O(|S|)$-per-candidate routine, applied naively across $O(p^{2n})$
+candidates each of size $O(p^{2n})$, is an $O(p^{4n})$ algorithm hiding
+inside what looks like a linear loop.
+
+\section{Discussion and future work}
+
+\paragraph{Why the headline examples return zero.} We want to be direct
+about this rather than let it read as an anticlimax: Theorem~\ref{thm:nonabelian}
+shows the zero result is not a limitation of the search, but a genuine
+structural fact about symplectic-type groups, proved here because the
+pipeline's own necessary condition made it unavoidable to ask why. The
+cross-check against $C_3 \wr C_3 \wr C_3$ (Section~\ref{sec:validation}),
+where the identical algorithm finds $16$ nontrivial classes, confirms the
+pipeline is not simply failing to find things it should.
+
+\paragraph{Future work.} The combinatorial search over automizer
+assignments and the saturation test (Section~\ref{sec:scope}) is not
+reimplemented in Python here, since it is not exercised by any of this
+paper's showcase groups (Section~\ref{sec:nofusion}). Porting the
+lazy, on-demand $\mathcal{F}$-class engine already validated in GAP/MAGMA
+for $C_3 \wr C_3 \wr C_3$ would let the same compiled PC-group engine drive
+groups that do have nontrivial essential subgroups, at Python speed rather
+than GAP's (the GAP computation for $C_3 \wr C_3 \wr C_3$ took about
+$29$ minutes). We would also like to push the exponent-$p$ odd-order
+family past $5^7$: the bottleneck identified in Section~\ref{sec:bottleneck}
+is fixed, but the number of raw candidates at the top section still grows
+like $p^{2n}$, so $7^7$ or $5^9$ would be the next natural targets, and
+would further stress-test whether any further per-candidate cost needs the
+same treatment.
+
+\section*{Acknowledgements}
+
+The reduction implemented here is due to Gautam~\cite{gautam2024}; the
+original candidate test suite and the $S$-centric/$\operatorname{Aut}(S)$-orbit
+architecture follow Parker and Semeraro~\cite{parkersemeraro}. The
+automorphism structure of extraspecial groups is Winter's
+theorem~\cite{winter1972}.
+
+\begin{thebibliography}{9}
+
+\bibitem{gautam2024}
+P.~Gautam, \emph{Fusion systems on Sylow $3$-subgroups of Fischer and
+  Monster sporadic groups II}, arXiv:2607.24674.
+
+\bibitem{parkersemeraro}
+C.~Parker, J.~Semeraro, \emph{Algorithms for fusion systems with
+  applications to $p$-groups of small order}, arXiv:2003.01600.
+
+\bibitem{winter1972}
+D.~L.~Winter, \emph{The automorphism group of an extraspecial $p$-group},
+  Rocky Mountain J.\ Math.\ \textbf{2} (1972), 159--168.
+
+\bibitem{sims1994}
+C.~C.~Sims, \emph{Computation with Finitely Presented Groups}, Cambridge
+  University Press, 1994.
+
+\bibitem{broto-levi-oliver}
+C.~Broto, R.~Levi, B.~Oliver, \emph{The homotopy theory of fusion systems},
+  J.\ Amer.\ Math.\ Soc.\ \textbf{16} (2003), 779--856.
+
+\end{thebibliography}
+
+\end{document}

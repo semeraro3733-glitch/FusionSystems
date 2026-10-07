@@ -14,6 +14,17 @@ The author's GAP implementation is in
 
 Load the package as before with `Attach("FusionSystems.m");`.
 
+**There is also a standalone, pure-Python implementation of the same fast
+method**, built from scratch (no computer-algebra dependency, only
+`numpy`), in [`fastfusion/`](fastfusion/README.md). It includes a compiled
+power-commutator group engine, verified automorphism generators for
+extraspecial $p$-groups via Winter's theorem, and showcase computations up
+to order $5^7$ and $2^{10}$ -- including a proof that extraspecial
+$p$-groups of rank $\geq 2$ have no proto-essential subgroups at all. See
+[`fastfusion/README.md`](fastfusion/README.md) to run it and
+[`paper/main.tex`](paper/main.tex) (or `paper/main.pdf`) for the full
+writeup.
+
 ## The method
 
 Let `S = L_0 > L_1 > ... > L_n = 1` be a central series of `S` with all factors of order `p`

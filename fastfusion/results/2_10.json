@@ -1,0 +1,15 @@
+{
+  "label": "2_10",
+  "order": 1024,
+  "p": 2,
+  "n": 10,
+  "time_seconds": 26.66322135925293,
+  "num_raw_candidates": 270,
+  "num_s_centric_candidates": 135,
+  "num_cheap_pass": 0,
+  "num_aut_orbits": 0,
+  "num_orbits_leaving_candidates": 0,
+  "num_proto_essential_aut_classes": 0,
+  "num_proto_essential_s_classes": 0,
+  "classes": []
+}
