@@ -366,6 +366,36 @@ FReceptive := function(fg, comps, Pgrp)
     return true;
 end;
 
+## The focal subgroup Foc(F) = <s^-1 s^b : s in S, b in Aut_F(S)> . <x^-1
+## phi(x) : x in E, phi in Aut_F(E), E an essential> (Aschbacher-Oliver-Ventura
+## 1.8). F satisfies O^p(F) = F iff Foc(F) = S -- the "reduced" condition
+## Parker-Semeraro's enumeration restricts to (their pPerfect/FocalSubgroupTest).
+FocalSubgroup := function(datum)
+    local S, B, gensB, gensS, foc, s, b, ess, gensE;
+    S := datum.S; B := datum.B;
+    gensB := GeneratorsOfGroup(B);
+    gensS := GeneratorsOfGroup(S);
+    foc := Subgroup(S, []);
+    for s in gensS do
+        for b in gensB do
+            foc := ClosureGroup(foc, s^-1 * s^b);
+        od;
+    od;
+    for ess in datum.essentials do
+        gensE := GeneratorsOfGroup(ess.grp);
+        for s in gensE do
+            for b in GeneratorsOfGroup(ess.autF) do
+                foc := ClosureGroup(foc, s^-1 * Image(b, s));
+            od;
+        od;
+    od;
+    return foc;
+end;
+
+IsFocalSubgroupAllOfS := function(datum)
+    return Size(FocalSubgroup(datum)) = Size(datum.S);
+end;
+
 ## Direct, from-definition saturation check: for every F-class (connected
 ## component) of subgroups, require that some member Pgrp with Size > 1 is
 ## simultaneously F-centric, fully automised and receptive (the standard
