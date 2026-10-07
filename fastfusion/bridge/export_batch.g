@@ -55,7 +55,7 @@ end;
 ExportOne := function(stream, size, idx)
     local G, p, n, k, gens, i, pcgs, power_words, comm_words,
           j, pw, is_elab, A, autgens, images, phi, img, first, comp,
-          poly, i2, trans, aut_size, aut_nprimes;
+          poly, i2, trans;
 
     G := SmallGroup(size, idx);
     p := Factors(size)[1];
@@ -106,26 +106,13 @@ ExportOne := function(stream, size, idx)
             od;
             Add(images, img);
         od;
-        # |Aut(S)| = |GL(k,p)| = p^(k(k-1)/2) * prod_{i=1}^k (p^i - 1); its
-        # prime factors are p together with those of each (p^i-1) term --
-        # factored individually (each far smaller than the full product,
-        # which for e.g. GL(7,5) is a 34-digit number) to avoid factoring
-        # a huge integer just to count distinct prime divisors.
-        aut_nprimes := Length(Union([[p]], List([1..k], i -> Set(FactorsInt(p^i - 1)))));
     else
         A := AutomorphismGroup(G);
         autgens := GeneratorsOfGroup(A);
         images := List(autgens, phi -> List(gens, g -> ExponentsOfPcElement(pcgs, Image(phi, g))));
-        # Number of distinct prime factors of |Aut(S)| -- used by the
-        # group-level pre-filter (Diaz-Glesser-Mazza-Park Cor 6.2, as
-        # already used in this repository's FusionSystems.m): for p >= 5,
-        # |Aut(S)| a prime power rules out S having any proto-essential
-        # subgroup at all, with no need to run the candidate search.
-        aut_nprimes := Length(Set(FactorsInt(Size(A))));
     fi;
 
-    PrintTo(stream, "{\"size\":", size, ",\"index\":", idx, ",\"n\":", k, ",\"p\":", p,
-            ",\"aut_nprimes\":", aut_nprimes);
+    PrintTo(stream, "{\"size\":", size, ",\"index\":", idx, ",\"n\":", k, ",\"p\":", p);
     PrintTo(stream, ",\"power_words\":[");
     for i in [1..k] do
         if i > 1 then PrintTo(stream, ","); fi;
