@@ -25,6 +25,13 @@
 ## bookkeeping intermediates when checking the extension axiom, even though
 ## the axioms themselves are only asserted at F-centric subgroups).
 
+## A Hall p'-subgroup of G (the complementary-primes Hall subgroup to p).
+HallPPrimeSubgroup := function(G, p)
+    local primes;
+    primes := Difference(PrimeDivisors(Size(G)), [p]);
+    return HallSubgroup(G, primes);
+end;
+
 ## Action function for Orbit/RepresentativeAction/Stabilizer when the
 ## "group" consists of automorphism mappings (GroupHomomorphismByImagesNC
 ## objects) acting on subgroups, as opposed to literal group elements

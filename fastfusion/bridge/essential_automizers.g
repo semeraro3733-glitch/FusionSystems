@@ -47,17 +47,15 @@ end;
 
 ## Is H (a proper subgroup of T) strongly p-embedded in T?
 IsStronglyPEmbedded := function(T, H, p)
-    local sylT, hasSylow, P, subs, allP;
+    local sylT, P, allP;
     if Size(H) = Size(T) then return false; fi;
     sylT := SylowSubgroup(T, p);
-    if not ForAny(ConjugacyClassSubgroups(T, sylT), c -> IsSubset(H, Representative(c))) then
-        # H must contain *some* Sylow p-subgroup of T, i.e. H contains a
-        # conjugate of sylT; check via containment up to conjugacy.
-        hasSylow := false;
-        for P in List(ConjugacyClassSubgroups(T, sylT)) do
-            if IsSubset(H, Representative(P)) then hasSylow := true; break; fi;
-        od;
-        if not hasSylow then return false; fi;
+    # H must contain *some* Sylow p-subgroup of T, i.e. a T-conjugate of
+    # sylT; iterating a conjugacy class of subgroups yields the actual
+    # conjugate subgroups themselves (not further "classes" needing their
+    # own Representative()).
+    if not ForAny(ConjugacyClassSubgroups(T, sylT), c -> IsSubset(H, c)) then
+        return false;
     fi;
     # every nontrivial p-subgroup of H has its T-normalizer inside H
     allP := Filtered(AllSubgroups(H), P -> Size(P) > 1 and Size(P) mod p = 0
