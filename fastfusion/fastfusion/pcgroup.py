@@ -293,7 +293,8 @@ class CompiledPGroup:
         self.elements: List[Vector] = elements
         self.index_of: Dict[Vector, int] = index_of
         self.right: np.ndarray = right            # shape (n, order)
-        self._finish_compile(parent, parent_gen)
+        # BFS discovery order *is* index assignment order here (0..order-1).
+        self._finish_compile(parent, parent_gen, np.arange(order, dtype=np.int64))
 
     def _compile_fast(self):
         """Build the regular representation bottom-up, one generator at a
@@ -399,8 +400,8 @@ class CompiledPGroup:
         self.elements = elements
         self.index_of = {v: i for i, v in enumerate(elements)}
         self.right = right_t
-        parent, parent_gen = self._bfs_tree_from_right()
-        self._finish_compile(parent, parent_gen)
+        parent, parent_gen, bfs_order = self._bfs_tree_from_right()
+        self._finish_compile(parent, parent_gen, bfs_order)
 
     def _make_layer(self, t_gens: int, elements: List[Vector], right: np.ndarray) -> "CompiledPGroup":
         """A bare CompiledPGroup wrapping an already-built (elements,right)
@@ -421,7 +422,15 @@ class CompiledPGroup:
     def _bfs_tree_from_right(self):
         """A parent/parent_gen BFS tree over the already-built `right`
         table (used by `_conjugation_vector`) -- a plain graph BFS, no
-        presentation collection involved."""
+        presentation collection involved.  Also returns the traversal
+        order itself: unlike `_compile_slow` (where BFS discovery order
+        *is* index assignment order, so parent[idx] < idx always),
+        `_compile_fast` assigns indices by a fixed mixed-radix formula
+        unrelated to this BFS, so parent[idx] can exceed idx and
+        `_conjugation_vector`'s single linear pass over range(1,order)
+        would read an not-yet-computed (or, worse, for a `np.empty`
+        array, uninitialised garbage) entry; it must walk this traversal
+        order instead."""
         order = self.order
         parent = np.full(order, -1, dtype=np.int64)
         parent_gen = np.full(order, -1, dtype=np.int64)
@@ -440,12 +449,19 @@ class CompiledPGroup:
                     parent[nxt] = idx
                     parent_gen[nxt] = g
                     queue.append(nxt)
-        return parent, parent_gen
+        return parent, parent_gen, np.array(queue, dtype=np.int64)
 
-    def _finish_compile(self, parent, parent_gen):
+    def _finish_compile(self, parent, parent_gen, bfs_order):
         n, order = self.n, self.order
         self.parent: np.ndarray = parent
         self.parent_gen: np.ndarray = parent_gen
+        # Traversal order for `_conjugation_vector`'s single linear pass:
+        # bfs_order[0] == 0 (the identity) and every index appears only
+        # after its parent does, which plain index order (0..order-1) does
+        # NOT guarantee once elements are assigned indices by a formula
+        # unrelated to this BFS (as `_compile_fast` does) rather than by
+        # BFS discovery itself (as `_compile_slow` does).
+        self.bfs_order: np.ndarray = bfs_order
         self.identity_index = 0
         self.gen_index: List[int] = [self._gen_index(g) for g in range(n)]
 
@@ -805,14 +821,18 @@ class CompiledPGroup:
         """orbit[idx] = index of elements[h] conjugated by elements[idx], for
         every idx in 0..order-1, computed in O(order) via the BFS tree used to
         build `right` (parent/parent_gen): conjugation by a product y*x_g
-        equals (conjugation by y) then (conjugation by x_g)."""
+        equals (conjugation by y) then (conjugation by x_g).  Must walk
+        `self.bfs_order`, not plain index order: `_compile_fast` assigns
+        indices by a mixed-radix formula unrelated to this BFS, so
+        parent[idx] is not always < idx."""
         order = self.order
         out = np.empty(order, dtype=np.int64)
         out[0] = h
         parent = self.parent
         parent_gen = self.parent_gen
         conj = self.conj
-        for idx in range(1, order):
+        for idx in self.bfs_order[1:]:
+            idx = int(idx)
             out[idx] = conj[int(parent_gen[idx]), out[int(parent[idx])]]
         return out
 
