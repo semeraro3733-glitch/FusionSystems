@@ -431,7 +431,12 @@ InstallGlobalFunction( FS_BorelCompatibleCandidates, function( F0, P, classcands
     NW := Normalizer( W, AutB );
     res := [];
     for A in classcands do
-        NA := Normalizer( A, T );
+        if HasFSSylowNormalizer( A ) then
+            NA := FSSylowNormalizer( A );
+        else
+            NA := Normalizer( A, T );
+            SetFSSylowNormalizer( A, NA );
+        fi;
         if Size( NA ) mod Size( AutB ) <> 0 then continue; fi;
         if maxenough then
             if Size( NA ) <> Size( AutB ) then continue; fi;
@@ -447,7 +452,7 @@ InstallGlobalFunction( FS_BorelCompatibleCandidates, function( F0, P, classcands
             if w = fail then continue; fi;
             cand := ConjugateSubgroup( A, w );
             # all conjugates cand^n, n in NW, modulo the normalizer of cand
-            tr := RightTransversal( NW, Intersection( NW, Normalizer( M, cand ) ) );
+            tr := RightTransversal( NW, Normalizer( NW, cand ) );
             for n in tr do
                 found := ConjugateSubgroup( cand, n );
                 if ForAny( res, K -> K = found ) then continue; fi;

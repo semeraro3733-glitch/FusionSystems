@@ -174,9 +174,13 @@ InstallGlobalFunction( FS_FusionSystemsForBorel, function( S, borel, proto, clas
     # transport the class candidates to the B-class representatives
     cand := [];
     for j in [ 1 .. Length( Pess ) ] do
-        hP := FS_AutHandle( proto.autreps[ Plabel[j] ] );
-        hQ := FS_AutHandle( Pess[j] );
-        cand[j] := List( classcands[ Plabel[j] ], A -> FS_TransportCandidate( A, hP, hQ, Ptheta[j] ) );
+        if IsIdenticalObj( Pess[j], proto.autreps[ Plabel[j] ] ) and IsOne( Ptheta[j] ) then
+            cand[j] := ShallowCopy( classcands[ Plabel[j] ] );
+        else
+            hP := FS_AutHandle( proto.autreps[ Plabel[j] ] );
+            hQ := FS_AutHandle( Pess[j] );
+            cand[j] := List( classcands[ Plabel[j] ], A -> FS_TransportCandidate( A, hP, hQ, Ptheta[j] ) );
+        fi;
     od;
     # Borel compatible candidates, iterated until stable
     changed := true;
