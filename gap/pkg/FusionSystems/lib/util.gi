@@ -1,0 +1,372 @@
+#############################################################################
+##
+##  util.gi                FusionSystems package
+##
+##  Conventions.  All automorphisms are GAP group homomorphisms; GAP
+##  composes mappings from left to right, so  a*b  means "first a, then b"
+##  and  Image(a*b, x) = Image(b, Image(a, x)).  Whenever we need a
+##  composite we evaluate it on a pcgs and build a fresh homomorphism by
+##  images, so no deep CompositionMapping objects are ever created.
+##
+
+#############################################################################
+##
+#F  FS_PPart( <n>, <p> )  . . . . . . . . . . .  the largest power of p dividing n
+##
+InstallGlobalFunction( FS_PPart, function( n, p )
+    local q;
+    q := 1;
+    while n mod p = 0 do n := n / p; q := q * p; od;
+    return q;
+end );
+
+#############################################################################
+##
+#F  FS_PcgsOf( <P> ) . . . . . . . a generating list of P suitable for homs by images
+##
+InstallGlobalFunction( FS_PcgsOf, function( P )
+    if CanEasilyComputePcgs( P ) then
+        return AsList( Pcgs( P ) );
+    fi;
+    return GeneratorsOfGroup( P );
+end );
+
+#############################################################################
+##
+#F  FS_HomByImages( <X>, <Y>, <gens>, <imgs> )
+##
+InstallGlobalFunction( FS_HomByImages, function( X, Y, gens, imgs )
+    local h;
+    h := GroupHomomorphismByImagesNC( X, Y, gens, imgs );
+    return h;
+end );
+
+#############################################################################
+##
+#F  FS_IdentityAut( <P> )
+##
+InstallGlobalFunction( FS_IdentityAut, function( P )
+    return IdentityMapping( P );
+end );
+
+#############################################################################
+##
+#F  FS_ConjAut( <P>, <g> ) . . . . . . . . . . . .  the automorphism x -> x^g of P
+##
+InstallGlobalFunction( FS_ConjAut, function( P, g )
+    return ConjugatorAutomorphismNC( P, g );
+end );
+
+#############################################################################
+##
+#F  FS_RestrictAut( <a>, <P> ) . . . restriction of the automorphism a to P <= Source(a)
+##
+##  It is assumed that a maps P onto P.
+##
+InstallGlobalFunction( FS_RestrictAut, function( a, P )
+    local gens;
+    gens := FS_PcgsOf( P );
+    return GroupHomomorphismByImagesNC( P, P, gens, List( gens, x -> ImagesRepresentative( a, x ) ) );
+end );
+
+#############################################################################
+##
+#F  FS_InducedAutOnQuotient( <a>, <q> )
+##
+##  a an automorphism of G, q: G -> G/N the natural homomorphism onto a
+##  quotient by an a-invariant normal subgroup.  Returns the induced
+##  automorphism of G/N.
+##
+InstallGlobalFunction( FS_InducedAutOnQuotient, function( a, q )
+    local Q, gens;
+    Q := Range( q );
+    gens := FS_PcgsOf( Q );
+    return GroupHomomorphismByImagesNC( Q, Q, gens,
+        List( gens, x -> ImagesRepresentative( q, ImagesRepresentative( a, PreImagesRepresentative( q, x ) ) ) ) );
+end );
+
+#############################################################################
+##
+#F  FS_InverseIso( <theta> ) . . . . . . . .  inverse of a bijective homomorphism
+##
+InstallGlobalFunction( FS_InverseIso, function( theta )
+    local gens;
+    gens := FS_PcgsOf( Range( theta ) );
+    return GroupHomomorphismByImagesNC( Range( theta ), Source( theta ), gens,
+        List( gens, y -> PreImagesRepresentative( theta, y ) ) );
+end );
+
+#############################################################################
+##
+#F  FS_ComposeHoms( <list> ) . . . . composite "first list[1], then list[2], ..."
+##
+InstallGlobalFunction( FS_ComposeHoms, function( list )
+    local X, gens, imgs, h;
+    X := Source( list[1] );
+    gens := FS_PcgsOf( X );
+    imgs := gens;
+    for h in list do
+        imgs := List( imgs, x -> ImagesRepresentative( h, x ) );
+    od;
+    return GroupHomomorphismByImagesNC( X, Range( list[ Length( list ) ] ), gens, imgs );
+end );
+
+#############################################################################
+##
+#F  FS_TransportAut( <a>, <theta> )
+##
+##  a an automorphism of X, theta: X -> Y an isomorphism. Returns the
+##  automorphism theta^-1 a theta of Y, i.e. y -> theta(a(theta^-1(y))).
+##
+InstallGlobalFunction( FS_TransportAut, function( a, theta )
+    local Y, gens;
+    Y := Range( theta );
+    gens := FS_PcgsOf( Y );
+    return GroupHomomorphismByImagesNC( Y, Y, gens,
+        List( gens, y -> ImagesRepresentative( theta, ImagesRepresentative( a, PreImagesRepresentative( theta, y ) ) ) ) );
+end );
+
+#############################################################################
+##
+#F  FS_OnImage( <X>, <a> ) . . . . . . . . action of automorphisms on subgroups
+##
+InstallGlobalFunction( FS_OnImage, function( X, a )
+    return ImagesSet( a, X );
+end );
+
+#############################################################################
+##
+#F  FS_AutGroupByGenerators( <gens>, <P> )
+##
+##  The group of automorphisms of P generated by gens, equipped with a
+##  nice monomorphism so that GAP can compute with it.
+##
+InstallGlobalFunction( FS_AutGroupByGenerators, function( gens, P )
+    local A;
+    gens := Filtered( gens, a -> not IsOne( a ) );
+    if Length( gens ) = 0 then
+        A := Group( IdentityMapping( P ) );
+    else
+        A := Group( gens );
+    fi;
+    SetIsGroupOfAutomorphisms( A, true );
+    SetIsHandledByNiceMonomorphism( A, true );
+    if Length( gens ) > 0 then
+        AssignNiceMonomorphismAutomorphismGroup( A, P );
+    fi;
+    return A;
+end );
+
+#############################################################################
+##
+#F  FS_AutomizerGenerators( <G>, <P> ) . . generators of Aut_G(P) as automorphisms
+##
+InstallGlobalFunction( FS_AutomizerGenerators, function( G, P )
+    local N;
+    N := Normalizer( G, P );
+    return List( GeneratorsOfGroup( N ), g -> ConjugatorAutomorphismNC( P, g ) );
+end );
+
+#############################################################################
+##
+#F  FS_Automizer( <G>, <P> ) . . . . . . . . . . . . Aut_G(P) = N_G(P)/C_G(P)
+##
+InstallGlobalFunction( FS_Automizer, function( G, P )
+    return FS_AutGroupByGenerators( FS_AutomizerGenerators( G, P ), P );
+end );
+
+#############################################################################
+##
+#F  FS_InnerAutGenerators( <P> )
+##
+InstallGlobalFunction( FS_InnerAutGenerators, function( P )
+    return List( GeneratorsOfGroup( P ), g -> ConjugatorAutomorphismNC( P, g ) );
+end );
+
+#############################################################################
+##
+#F  FS_IsCentricIn( <S>, <P> ) . . . . . . . . . . . . . . . . C_S(P) <= P ?
+##
+InstallGlobalFunction( FS_IsCentricIn, function( S, P )
+    return IsSubset( P, Centralizer( S, P ) );
+end );
+
+#############################################################################
+##
+#F  FS_SubgroupInvariants( <S>, <H> )
+##
+##  Cheap invariants of the S-conjugacy class of H, used to avoid calls to
+##  IsConjugate.
+##
+InstallGlobalFunction( FS_SubgroupInvariants, function( S, H )
+    return [ Size( H ), Size( Normalizer( S, H ) ), Size( Centralizer( S, H ) ),
+             Size( Center( H ) ), Size( FrattiniSubgroup( H ) ), Size( DerivedSubgroup( H ) ),
+             Exponent( H ) ];
+end );
+
+#############################################################################
+##
+#F  FS_ClassPosition( <S>, <reps>, <invs>, <H> )
+##
+##  Returns [ j, s ] where H^s = reps[j], or fail if H is not S-conjugate
+##  to any member of reps.  invs[j] = FS_SubgroupInvariants( S, reps[j] ).
+##
+InstallGlobalFunction( FS_ClassPosition, function( S, reps, invs, H )
+    local inv, j, s;
+    inv := FS_SubgroupInvariants( S, H );
+    for j in [ 1 .. Length( reps ) ] do
+        if invs[j] = inv then
+            if H = reps[j] then return [ j, One( S ) ]; fi;
+            s := RepresentativeAction( S, H, reps[j] );
+            if s <> fail then return [ j, s ]; fi;
+        fi;
+    od;
+    return fail;
+end );
+
+#############################################################################
+##
+#F  FS_IsQuaternionOrCyclic( <Q> )
+##
+##  Q a p-group.  Q is cyclic or (generalised) quaternion iff it has a
+##  unique subgroup of order p, iff it has exactly p-1 elements of order p
+##  (up to conjugacy this is the test used by Parker-Semeraro).
+##
+InstallGlobalFunction( FS_IsQuaternionOrCyclic, function( Q )
+    local p;
+    if Size( Q ) = 1 then return true; fi;
+    p := PrimePGroup( Q );
+    return Number( ConjugacyClasses( Q ), c -> Order( Representative( c ) ) = p ) = p - 1;
+end );
+
+#############################################################################
+##
+##  Sylow p-subgroups of the known groups with a strongly p-embedded
+##  subgroup and non-cyclic, non-quaternion Sylow subgroups of order at
+##  most p^7 (Parker-Semeraro, IsStronglypSylow): elementary abelian groups
+##  (PSL_2(p^n)), Sylow subgroups of PSU_3(p^n), of PGammaL_2(8) (p=3),
+##  of Sz(8) (p=2) and of Alt(2p) ... (the latter are elementary abelian).
+##
+BindGlobal( "FS_StronglypSylowTesters", rec() );
+
+BindGlobal( "FS_StronglypSylowTestersFor", function( p )
+    local name, X, Y, T, i;
+    name := String( p );
+    if IsBound( FS_StronglypSylowTesters.( name ) ) then
+        return FS_StronglypSylowTesters.( name );
+    fi;
+    X := CyclicGroup( IsPcGroup, p ); Y := X; T := [];
+    for i in [ 1 .. 7 ] do Y := DirectProduct( Y, X ); Add( T, Y ); od;
+    Add( T, SylowSubgroup( SU( 3, p ), p ) );
+    Add( T, SylowSubgroup( SU( 3, p^2 ), p ) );
+    if p = 3 then Add( T, SylowSubgroup( AutomorphismGroup( PSL( 2, 8 ) ), 3 ) ); fi;
+    if p = 2 then Add( T, SylowSubgroup( SuzukiGroup( IsPermGroup, 8 ), 2 ) ); fi;
+    T := List( T, G -> Image( IsomorphismPcGroup( G ) ) );
+    FS_StronglypSylowTesters.( name ) := T;
+    return T;
+end );
+
+#############################################################################
+##
+#F  FS_IsStronglypSylow( <Q> )
+##
+##  Can the p-group Q be a Sylow p-subgroup of a group with a strongly
+##  p-embedded subgroup?  Returns true or false (a necessary condition).
+##
+InstallGlobalFunction( FS_IsStronglypSylow, function( Q )
+    local p;
+    if Size( Q ) = 1 then return false; fi;
+    p := PrimePGroup( Q );
+    if FS_IsQuaternionOrCyclic( Q ) then return true; fi;
+    if Size( Q ) <= p^7 then
+        return ForAny( FS_StronglypSylowTestersFor( p ),
+                       T -> Size( T ) = Size( Q ) and IsomorphismGroups( T, Q ) <> fail );
+    fi;
+    return true;
+end );
+
+#############################################################################
+##
+#F  FS_RadicalTest( <S>, <P> ) . . . . . . . . .  Aut_S(P) meet O_p(Aut(P)) = Inn(P) ?
+##
+##  A necessary condition for P to be F-radical and fully automised in a
+##  saturated fusion system on S.  Uses the automorphism group handle of P
+##  (see autgroup.gi).
+##
+InstallGlobalFunction( FS_RadicalTest, function( S, P )
+    local h, O, A;
+    h := FS_AutHandle( P );
+    O := FS_AutPCore( h );
+    A := FS_AutSubgroup( h, FS_AutomizerGenerators( S, P ) );
+    return Size( Intersection( A, O ) ) = Index( P, Center( P ) );
+end );
+
+#############################################################################
+##
+#F  FS_CheapProtoEssentialTest( <S>, <P> )
+##
+##  The Parker-Semeraro tests for an S-centric subgroup P that do not need
+##  Aut(P):  |P/Phi(P)| >= |Out_S(P)|^2,  C_{N_S(P)}(P/Phi(P)) <= P  and
+##  N_S(P)/P can be a Sylow subgroup of a group with a strongly p-embedded
+##  subgroup.
+##
+InstallGlobalFunction( FS_CheapProtoEssentialTest, function( S, P )
+    local N, Phi, q, Q;
+    N := Normalizer( S, P );
+    if N = P then return false; fi;
+    Phi := FrattiniSubgroup( P );
+    if Index( P, Phi ) < Index( N, P )^2 then return false; fi;
+    q := NaturalHomomorphismByNormalSubgroup( N, Phi );
+    Q := Image( q );
+    if not IsSubset( P, PreImage( q, Centralizer( Q, Image( q, P ) ) ) ) then return false; fi;
+    return FS_IsStronglypSylow( N / P );
+end );
+
+#############################################################################
+##
+#F  FS_LargestInvariantSubgroup( <Q>, <auts> )
+##
+##  The largest subgroup of Q which is mapped into itself by every element
+##  of the list auts of automorphisms (or injective homomorphisms defined on
+##  overgroups of Q).  Computed as the stable value of Q -> Q meet a(Q) meet a^-1(Q).
+##
+InstallGlobalFunction( FS_LargestInvariantSubgroup, function( Q, auts )
+    local changed, a, I;
+    repeat
+        changed := false;
+        for a in auts do
+            I := ImagesSet( a, Q );
+            if I <> Q then
+                Q := Intersection( Q, I );
+                changed := true;
+            fi;
+            I := PreImagesSet( a, Q );
+            if I <> Q then
+                Q := Intersection( Q, I );
+                changed := true;
+            fi;
+        od;
+    until not changed;
+    return Q;
+end );
+
+#############################################################################
+##
+#F  FS_SubgroupsContaining( <N>, <P> ) . .  all subgroups V with P < V <= N, P normal in N
+##
+InstallGlobalFunction( FS_SubgroupsContaining, function( N, P )
+    local q, Q, subs;
+    q := NaturalHomomorphismByNormalSubgroup( N, P );
+    Q := Image( q );
+    subs := Filtered( List( ConjugacyClassesSubgroups( Q ), Representative ), U -> Size( U ) > 1 );
+    subs := Concatenation( List( subs, U -> AsList( ConjugacyClassSubgroups( Q, U ) ) ) );
+    return List( subs, U -> PreImage( q, U ) );
+end );
+
+#############################################################################
+##
+#F  FS_IsSylowIn( <T>, <A>, <p> ) . . . . is the p-subgroup T a Sylow p-subgroup of A?
+##
+InstallGlobalFunction( FS_IsSylowIn, function( T, A, p )
+    return Size( T ) = FS_PPart( Size( A ), p );
+end );
