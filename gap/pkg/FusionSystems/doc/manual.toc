@@ -1,0 +1,29 @@
+\contentsline {chapter}{\numberline {1}\textcolor {Chapter }{Introduction}}{4}{chapter.1}%
+\contentsline {section}{\numberline {1.1}\textcolor {Chapter }{Fusion systems}}{4}{section.1.1}%
+\contentsline {section}{\numberline {1.2}\textcolor {Chapter }{Overview of the algorithms}}{4}{section.1.2}%
+\contentsline {chapter}{\numberline {2}\textcolor {Chapter }{Fusion systems}}{6}{chapter.2}%
+\contentsline {section}{\numberline {2.1}\textcolor {Chapter }{Construction}}{6}{section.2.1}%
+\contentsline {subsection}{\numberline {2.1.1}\textcolor {Chapter }{FusionSystem}}{6}{subsection.2.1.1}%
+\contentsline {subsection}{\numberline {2.1.2}\textcolor {Chapter }{GroupFusionSystem (for a group and a prime)}}{6}{subsection.2.1.2}%
+\contentsline {subsection}{\numberline {2.1.3}\textcolor {Chapter }{UnderlyingGroup (for fusion systems)}}{7}{subsection.2.1.3}%
+\contentsline {section}{\numberline {2.2}\textcolor {Chapter }{Conjugacy and automizers}}{7}{section.2.2}%
+\contentsline {subsection}{\numberline {2.2.1}\textcolor {Chapter }{AutF}}{7}{subsection.2.2.1}%
+\contentsline {subsection}{\numberline {2.2.2}\textcolor {Chapter }{FConjugacyClass}}{7}{subsection.2.2.2}%
+\contentsline {subsection}{\numberline {2.2.3}\textcolor {Chapter }{IsFCentric}}{7}{subsection.2.2.3}%
+\contentsline {section}{\numberline {2.3}\textcolor {Chapter }{Saturation, $O_p(F)$ and the focal subgroup}}{8}{section.2.3}%
+\contentsline {subsection}{\numberline {2.3.1}\textcolor {Chapter }{IsSaturated}}{8}{subsection.2.3.1}%
+\contentsline {subsection}{\numberline {2.3.2}\textcolor {Chapter }{OpF}}{8}{subsection.2.3.2}%
+\contentsline {section}{\numberline {2.4}\textcolor {Chapter }{Isomorphism}}{8}{section.2.4}%
+\contentsline {subsection}{\numberline {2.4.1}\textcolor {Chapter }{IsIsomorphicFusionSystems}}{8}{subsection.2.4.1}%
+\contentsline {chapter}{\numberline {3}\textcolor {Chapter }{Classification}}{10}{chapter.3}%
+\contentsline {section}{\numberline {3.1}\textcolor {Chapter }{Essential subgroups and their automizers}}{10}{section.3.1}%
+\contentsline {subsection}{\numberline {3.1.1}\textcolor {Chapter }{RefinedLowerCentralSeries}}{10}{subsection.3.1.1}%
+\contentsline {subsection}{\numberline {3.1.2}\textcolor {Chapter }{ProtoEssentialSubgroups}}{10}{subsection.3.1.2}%
+\contentsline {subsection}{\numberline {3.1.3}\textcolor {Chapter }{ProtoEssentialAutomizerCandidates}}{10}{subsection.3.1.3}%
+\contentsline {subsection}{\numberline {3.1.4}\textcolor {Chapter }{BorelSubgroups}}{11}{subsection.3.1.4}%
+\contentsline {subsection}{\numberline {3.1.5}\textcolor {Chapter }{HasStronglyPEmbeddedSubgroup}}{11}{subsection.3.1.5}%
+\contentsline {section}{\numberline {3.2}\textcolor {Chapter }{All saturated fusion systems on a $p$-group}}{11}{section.3.2}%
+\contentsline {subsection}{\numberline {3.2.1}\textcolor {Chapter }{AllFusionSystems}}{11}{subsection.3.2.1}%
+\contentsline {subsection}{\numberline {3.2.2}\textcolor {Chapter }{InfoFusionSystems}}{11}{subsection.3.2.2}%
+\contentsline {chapter}{References}{12}{chapter*.4}%
+\contentsline {chapter}{Index}{13}{section*.5}%

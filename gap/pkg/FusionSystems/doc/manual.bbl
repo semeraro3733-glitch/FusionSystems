@@ -1,0 +1,22 @@
+\newcommand{\etalchar}[1]{$^{#1}$}
+\begin{thebibliography}{BCG{\etalchar{+}}05}
+
+\bibitem[BCG{\etalchar{+}}05]{BCGLO05}
+Carles Broto, Nat{\`a}lia Castellana, Jesper Grodal, Ran Levi, and Bob Oliver.
+\newblock Subgroup families controlling {$p$}-local finite groups.
+\newblock {\em Proc. London Math. Soc.}, 91:325--354, 2005.
+
+\bibitem[Gau26]{Gau26}
+Pranav Gautam.
+\newblock Fusion systems on {S}ylow 3-subgroups of {F}ischer and {M}onster
+  sporadic groups {II}, 2026.
+\newblock arXiv:2607.24674.
+
+\bibitem[PS21]{PS21}
+Chris Parker and Jason Semeraro.
+\newblock Algorithms for fusion systems with applications to {$p$}-groups of
+  small order.
+\newblock {\em Math. Comp.}, 90:2415--2461, 2021.
+\newblock arXiv:2003.01600.
+
+\end{thebibliography}

@@ -1,0 +1,18 @@
+  
+  
+  [1XReferences[101X
+  
+  [[20XBCG+05[120X]  [16XBroto,  C.,  Castellana,  N., Grodal, J., Levi, R. and Oliver, B.[116X,
+  [17XSubgroup  families  controlling  p-local  finite  groups[117X, [18XProc. London Math.
+  Soc.[118X, [19X91[119X (2005), 325--354.
+  
+  [[20XGau26[120X]  [16XGautam,  P.[116X,  [17XFusion  systems  on  Sylow 3-subgroups of Fischer and
+  Monster sporadic groups II[117X (2026), (arXiv:2607.24674).
+  
+  [[20XPS21[120X]  [16XParker,  C.  and  Semeraro,  J.[116X,  [17XAlgorithms for fusion systems with
+  applications to p-groups of small order[117X, [18XMath. Comp.[118X, [19X90[119X (2021), 2415--2461,
+  (arXiv:2003.01600).
+  
+  
+  
+  [32X

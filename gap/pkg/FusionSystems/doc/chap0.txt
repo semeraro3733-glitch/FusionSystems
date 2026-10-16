@@ -1,0 +1,75 @@
+  
+  
+                                 [1XFusionSystems[101X
+  
+  
+                  [1XSaturated fusion systems on finite [22Xp[122X-groups[101X
+  
+  
+                                 Version 1.0.0
+  
+  
+                                  October 2026
+  
+  
+                                  Chris Parker
+  
+                                 Jason Semeraro
+  
+  
+  
+  Jason Semeraro
+      Email:    [7Xmailto:semeraro3733@googlemail.com[107X
+  
+  -------------------------------------------------------
+  [1XAbstract[101X
+  [33X[0;0YThe  package  implements  the algorithms of Parker and Semeraro ([PS21]) for
+  saturated fusion systems on finite [22Xp[122X-groups in GAP 4: construction of fusion
+  systems  from  generating  automizers and from finite groups, computation of
+  [22XF[122X-conjugacy  classes and automizers, a saturation test, the isomorphism test
+  and  the  classification of all saturated fusion systems on a given [22Xp[122X-group.
+  It  incorporates the fast search for essential subgroups of Gautam ([Gau26])
+  and replaces the fusion graph of [PS21] by a lazy, graph free computation.[133X
+  
+  
+  -------------------------------------------------------
+  [1XCopyright[101X
+  [33X[0;0Y©  2026  by  the  authors. Distributed under the GNU General Public License,
+  version 2 or later.[133X
+  
+  
+  -------------------------------------------------------
+  
+  
+  [1XContents (FusionSystems)[101X
+  
+  1 [33X[0;0YIntroduction[133X
+    1.1 [33X[0;0YFusion systems[133X
+    1.2 [33X[0;0YOverview of the algorithms[133X
+  2 [33X[0;0YFusion systems[133X
+    2.1 [33X[0;0YConstruction[133X
+      2.1-1 FusionSystem
+      2.1-2 GroupFusionSystem
+      2.1-3 UnderlyingGroup
+    2.2 [33X[0;0YConjugacy and automizers[133X
+      2.2-1 AutF
+      2.2-2 FConjugacyClass
+      2.2-3 IsFCentric
+    2.3 [33X[0;0YSaturation, [22XO_p(F)[122X and the focal subgroup[133X
+      2.3-1 IsSaturated
+      2.3-2 OpF
+    2.4 [33X[0;0YIsomorphism[133X
+      2.4-1 IsIsomorphicFusionSystems
+  3 [33X[0;0YClassification[133X
+    3.1 [33X[0;0YEssential subgroups and their automizers[133X
+      3.1-1 RefinedLowerCentralSeries
+      3.1-2 ProtoEssentialSubgroups
+      3.1-3 ProtoEssentialAutomizerCandidates
+      3.1-4 BorelSubgroups
+      3.1-5 HasStronglyPEmbeddedSubgroup
+    3.2 [33X[0;0YAll saturated fusion systems on a [22Xp[122X-group[133X
+      3.2-1 AllFusionSystems
+      3.2-2 InfoFusionSystems
+  
+  
+  [32X

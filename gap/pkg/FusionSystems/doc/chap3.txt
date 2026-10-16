@@ -1,0 +1,95 @@
+  
+  [1X3 [33X[0;0YClassification[133X[101X
+  
+  
+  [1X3.1 [33X[0;0YEssential subgroups and their automizers[133X[101X
+  
+  [1X3.1-1 RefinedLowerCentralSeries[101X
+  
+  [33X[1;0Y[29X[2XRefinedLowerCentralSeries[102X( [3XS[103X ) [32X function[133X
+  [33X[1;0Y[29X[2XCentralSeriesCentralizers[102X( [3XS[103X ) [32X function[133X
+  
+  [33X[0;0Ya  central  series of the [22Xp[122X-group [3XS[103X with all factors of order [22Xp[122X refining the
+  lower  central  series,  and the list of the subgroups [22XC_S(xA/A)[122X of Gautam's
+  theorem.[133X
+  
+  [1X3.1-2 ProtoEssentialSubgroups[101X
+  
+  [33X[1;0Y[29X[2XProtoEssentialSubgroups[102X( [3XS[103X[, [3Xopts[103X] ) [32X function[133X
+  
+  [33X[0;0Yreturns   a   record   with   components  [10Xautreps[110X  (representatives  of  the
+  [22XAut(S)[122X-classes  of  proto-essential  subgroups),  [10Xsreps[110X  (representatives of
+  their [22XS[122X-classes), [10Xlabel[110X and [10Xpath[110X ([10Xsreps[i][110X is the image of [10Xautreps[label[i]][110X
+  under  the  automorphism  [10Xpath[i][1][110X conjugated by [10Xpath[i][2][110X). With [10Xopts :=
+  rec(  exhaustive  :=  true )[110X all [22XS[122X-centric subgroups are examined instead of
+  Gautam's candidates.[133X
+  
+  [4X[32X  Example  [32X[104X
+    [4X[25Xgap>[125X [27XS := SylowSubgroup( PSU( 4, 3 ), 3 );;  S := Image( IsomorphismPcGroup( S ) );;[127X[104X
+    [4X[25Xgap>[125X [27Xr := ProtoEssentialSubgroups( S );;[127X[104X
+    [4X[25Xgap>[125X [27XList( r.autreps, Size );[127X[104X
+    [4X[28X[ 243, 81 ][128X[104X
+  [4X[32X[104X
+  
+  [1X3.1-3 ProtoEssentialAutomizerCandidates[101X
+  
+  [33X[1;0Y[29X[2XProtoEssentialAutomizerCandidates[102X( [3XS[103X, [3XP[103X[, [3Xopts[103X] ) [32X function[133X
+  
+  [33X[0;0Ythe  subgroups [22XA[122X of [22XAut(P)[122X (as subgroups of the model group of [10XFS_AutHandle(
+  P  )[110X)  containing [22XInn(P)[122X with [22XAut_S(P)[122X as Sylow [22Xp[122X-subgroup and with [22XA/Inn(P)[122X
+  having   a   strongly   [22Xp[122X-embedded  subgroup,  one  for  each  [22XAut(P)[122X-class.
+  [10Xopts.candidates[110X  may  be  a function [10X(S, P)[110X returning lists of automorphisms
+  (or model subgroups) to be used instead.[133X
+  
+  [1X3.1-4 BorelSubgroups[101X
+  
+  [33X[1;0Y[29X[2XBorelSubgroups[102X( [3XS[103X[, [3Xorders[103X] ) [32X function[133X
+  
+  [33X[0;0Ythe  [22Xp'[122X-subgroups  [22XK[122X  of  [22XAut(S)[122X up to conjugacy, as records with components
+  [10Xmodel[110X  and  [10Xgens[110X  (the  generators  as  automorphisms of [3XS[103X); [22XInn(S) ⋊ K[122X runs
+  through the possibilities for [22XAut_F(S)[122X.[133X
+  
+  [1X3.1-5 HasStronglyPEmbeddedSubgroup[101X
+  
+  [33X[1;0Y[29X[2XHasStronglyPEmbeddedSubgroup[102X( [3XG[103X, [3Xp[103X ) [32X function[133X
+  
+  [33X[0;0Ywhether  the  finite  group  [3XG[103X  has a strongly [3Xp[103X-embedded subgroup: with [22XT[122X a
+  Sylow [22Xp[122X-subgroup this is the case iff [22X⟨ N_G(T), N_G(Q) : Q ≤ T, |Q| = p ⟩ ne
+  G[122X.[133X
+  
+  
+  [1X3.2 [33X[0;0YAll saturated fusion systems on a [22Xp[122X[101X[1X-group[133X[101X
+  
+  [1X3.2-1 AllFusionSystems[101X
+  
+  [33X[1;0Y[29X[2XAllFusionSystems[102X( [3XS[103X[, [3Xopts[103X] ) [32X function[133X
+  
+  [33X[0;0Yreturns  a  list  of representatives of the isomorphism classes of saturated
+  fusion  systems  on  the  pc  group  [3XS[103X, by default those with [22XO_p(F) = 1[122X and
+  [22XO^p(F) = F[122X. The optional record [3Xopts[103X may have the components [10XOpTriv[110X (default
+  [9Xtrue[109X),  [10XpPerfect[110X (default [9Xtrue[109X), [10XOutFSOrders[110X (a list of admissible orders of
+  [22XOut_F(S)[122X),  [10Xexhaustive[110X  (default [9Xfalse[109X) and [10Xcandidates[110X (a function supplying
+  automizer   candidates,   see   [2XProtoEssentialAutomizerCandidates[102X  ([14X3.1-3[114X)).
+  Progress is reported at levels 1 and 2 of [2XInfoFusionSystems[102X ([14X3.2-2[114X).[133X
+  
+  [4X[32X  Example  [32X[104X
+    [4X[25Xgap>[125X [27XL := AllFusionSystems( ExtraspecialGroup( 27, 3 ) );;[127X[104X
+    [4X[25Xgap>[125X [27XLength( L );[127X[104X
+    [4X[28X4[128X[104X
+    [4X[25Xgap>[125X [27XSortedList( List( L, OutFSOrder ) );[127X[104X
+    [4X[28X[ 4, 8, 8, 16 ][128X[104X
+    [4X[25Xgap>[125X [27XForAny( L, F -> IsIsomorphicFusionSystems( F, GroupFusionSystem( PSL( 3, 3 ), 3 ) ) );[127X[104X
+    [4X[28Xtrue[128X[104X
+    [4X[25Xgap>[125X [27XLength( AllFusionSystems( ExtraspecialGroup( 343, 7 ) ) );[127X[104X
+    [4X[28X13[128X[104X
+  [4X[32X[104X
+  
+  [33X[0;0YThe  last example recovers the classification of Ruiz and Viruel for [22X7^1+2_+[122X
+  (ten systems realized by finite groups and three exotic ones).[133X
+  
+  [1X3.2-2 InfoFusionSystems[101X
+  
+  [33X[1;0Y[29X[2XInfoFusionSystems[102X [32X info class[133X
+  
+  [33X[0;0Ythe info class of the package.[133X
+  
