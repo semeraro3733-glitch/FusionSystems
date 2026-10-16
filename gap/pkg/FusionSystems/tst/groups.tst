@@ -41,24 +41,24 @@ gap> CheckGroup( MathieuGroup( 12 ), 3 );
 [ true, 4, [ 9, 9 ] ]
 gap> F := GroupFusionSystem( PSU( 4, 3 ), 3 );;
 gap> [ OutFSOrder( F ), List( EssentialSubgroups( F ), Size ), List( EssentialAutomizers( F ), Size ) ];
-[ 4, [ 243, 81 ], [ 3888, 29160 ] ]
+[ 4, [ 243, 81 ], [ 3888, 360 ] ]
 gap> FS_IsSaturatedWithReason( F );
 [ true ]
 gap> IsOpFTrivial( F ); IsPPerfectFusionSystem( F );
 true
 true
 gap> S := UnderlyingGroup( F );;
-gap> Z := Center( S );;
-gap> Size( AutF( F, Z ) );
+gap> Zc := Center( S );;
+gap> Size( AutF( F, Zc ) );
 2
-gap> IsFCentric( F, Z );
+gap> IsFCentric( F, Zc );
 false
-gap> E := First( EssentialSubgroups( F ), E -> Size( E ) = 81 );;
-gap> IsFCentric( F, E ); IsFullyNormalized( F, E ); IsFullyAutomized( F, E ); IsFRadical( F, E );
+gap> Es := First( EssentialSubgroups( F ), E -> Size( E ) = 81 );;
+gap> IsFCentric( F, Es ); IsFullyNormalized( F, Es ); IsFullyAutomized( F, Es ); IsFRadical( F, Es );
 true
 true
 true
 true
-gap> HasSurjectivityProperty( F, E );
+gap> HasSurjectivityProperty( F, Es );
 true
 gap> STOP_TEST( "groups.tst", 1 );

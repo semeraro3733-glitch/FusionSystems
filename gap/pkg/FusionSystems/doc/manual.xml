@@ -193,7 +193,7 @@ gap> OutFSOrder( F );  List( EssentialSubgroups( F ), Size );
 4
 [ 243, 81 ]
 gap> List( EssentialAutomizers( F ), Size );
-[ 3888, 29160 ]
+[ 3888, 360 ]
 ]]></Example>
 </Description>
 </ManSection>
