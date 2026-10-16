@@ -248,7 +248,7 @@ end );
 ##
 InstallGlobalFunction( FS_FrameCandidates, function( S, P, Tbar, opts )
     local p, h, outd, Mbar, q, n, pcgs, lines, Tgens, Tgrp, orbs, frames, types, res, i, mon, cls, H,
-          frame, Dgens, Pgens, sigma, img, W, candfr, typ, stabsize, D, NT, Ks, K, X, ints, N, L, pts, act, red, monS, TS;
+          frame, Dgens, Pgens, sigma, img, W, candfr, typ, stabsize, D, NT, Ks, K, X, ints, N, L, pts, toS, back, monS, TS;
     p := PrimePGroup( P );
     h := FS_AutHandle( P );
     outd := FS_OutData( P );
@@ -305,15 +305,21 @@ InstallGlobalFunction( FS_FrameCandidates, function( S, P, Tbar, opts )
         # multiples of the frame generators; all subgroup computations are
         # done in this small permutation representation
         pts := Concatenation( List( Pgens, g -> List( [ 1 .. p - 1 ], k -> g^k ) ) );
-        act := function( pt, x ) return ImagesRepresentative( h.from( PreImagesRepresentative( q, x ) ), pt ); end;
-        red := ActionHomomorphism( mon, pts, act );
-        monS := Image( red, mon );
-        TS := Image( red, Tbar );
+        toS := function( x )
+            local a;
+            a := h.from( PreImagesRepresentative( q, x ) );
+            return PermList( List( pts, pt -> Position( pts, ImagesRepresentative( a, pt ) ) ) );
+        end;
+        monS := Group( List( GeneratorsOfGroup( mon ), toS ) );
+        # the inverse map (the generic PreImage of an action homomorphism
+        # would enumerate the large group)
+        back := GroupHomomorphismByImagesNC( monS, mon, GeneratorsOfGroup( monS ), GeneratorsOfGroup( mon ) );
+        TS := SubgroupNC( monS, List( GeneratorsOfGroup( Tbar ), toS ) );
         cls := FS_CandidatesInGroup( monS, p, TS, false, opts );
         if not FS_LatticeFeasible( monS, p, Size( TS ) ) and FS_IsQuaternionOrCyclic( TS ) then
             # the p-soluble candidates H = K N with K = O_{p'}(H) inside the
             # diagonal subgroup D of the monomial group and N <= N_mon(T)
-            D := Image( red, Image( q, FS_AutSubgroup( h, Dgens{[ 1 .. n ]} ) ) );
+            D := SubgroupNC( monS, List( GeneratorsOfGroup( Image( q, FS_AutSubgroup( h, Dgens{[ 1 .. n ]} ) ) ), toS ) );
             NT := Normalizer( monS, TS );
             Ks := SubgroupsSolvableGroup( D, rec( actions := List( GeneratorsOfGroup( TS ), x -> ConjugatorAutomorphismNC( D, x ) ) ) );
             for K in Ks do
@@ -335,7 +341,7 @@ InstallGlobalFunction( FS_FrameCandidates, function( S, P, Tbar, opts )
         fi;
         Info( InfoFusionSystems, 2, "frame of type ", types[ Position( frames, frame ) ], ": ", Length( cls ),
               " candidates in the monomial group" );
-        cls := List( cls, H -> PreImage( red, H ) );
+        cls := List( cls, H -> SubgroupNC( mon, List( GeneratorsOfGroup( H ), x -> ImagesRepresentative( back, x ) ) ) );
         for H in cls do
             if Length( frames ) > 1 and ForAny( res, K -> Size( K ) = Size( H ) and RepresentativeAction( W, K, H ) <> fail ) then continue; fi;
             Add( res, H );
