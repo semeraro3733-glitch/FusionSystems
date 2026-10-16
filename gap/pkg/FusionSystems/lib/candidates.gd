@@ -14,4 +14,4 @@ DeclareGlobalFunction( "FS_BorelCompatibleCandidates" );
 DeclareGlobalFunction( "FS_CoreCompatible" );
 DeclareGlobalFunction( "FS_TransportCandidate" );
 
-BindGlobal( "FS_Options", rec( latticeBound := 20000000, tupleBound := 200000 ) );
+BindGlobal( "FS_Options", rec( latticeBound := 500000, solvableLatticeBound := 10^9, perfectBound := 10^11, tupleBound := 200000 ) );

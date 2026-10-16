@@ -36,7 +36,7 @@ InstallGlobalFunction( FS_OutData, function( P )
 end );
 
 InstallGlobalFunction( FS_LatticeFeasible, function( G, p, pp )
-    if IsSolvableGroup( G ) then return Size( G ) <= 50 * FS_Options.latticeBound; fi;
+    if IsSolvableGroup( G ) then return Size( G ) <= FS_Options.solvableLatticeBound; fi;
     return Size( G ) <= FS_Options.latticeBound;
 end );
 
@@ -50,13 +50,123 @@ end );
 InstallGlobalFunction( FS_SubgroupClassesWithPPart, function( G, p, pp )
     local cls, lat;
     if Size( G ) = 1 then return []; fi;
-    if IsSolvableGroup( G ) then
+    if IsSolvableGroup( G ) or not IsBound( FS_Options.cyclicExtension ) or not FS_Options.cyclicExtension then
         cls := List( ConjugacyClassesSubgroups( G ), Representative );
     else
         lat := LatticeByCyclicExtension( G, function( H ) return FS_PPart( Size( H ), p ) <= pp; end );
         cls := List( ConjugacyClassesSubgroups( lat ), Representative );
     fi;
     return Filtered( cls, H -> FS_PPart( Size( H ), p ) = pp );
+end );
+
+#############################################################################
+##
+#F  FS_PerfectCandidates( <G>, <p>, <T> )
+##
+##  The subgroups H of G which are not p-soluble, have T as a Sylow
+##  p-subgroup and have a strongly p-embedded subgroup, one for each
+##  conjugacy class (conjugated so that T <= H).
+##
+##  Let H be such a group and Y = H^(infinity) its perfect residuum.  Then
+##  Y is perfect and normal in H, T_0 = T meet Y is a Sylow p-subgroup of
+##  Y and, by the Frattini argument, H = Y N_H(T_0) with
+##  T <= N_H(T_0) <= R := N_G(Y) meet N_G(T_0).  Hence H = Y M for a
+##  subgroup M of R containing T, and T normalizes Y.  So we run through
+##  the perfect subgroups Y of G (up to conjugacy) with p | |Y| and
+##  |Y|_p <= |T|, their conjugates whose Sylow p-subgroup lies in T and
+##  which are normalized by T, and the subgroups M of R containing T.
+##
+BindGlobal( "FS_PerfectCandidates", function( G, p, T )
+    local perf, res, W, Y0, TY, subsU, U, g, Y, NU, NY, tr, n, Yn, NYn, R0, ints, M, H, pp;
+    pp := Size( T );
+    perf := Filtered( RepresentativesPerfectSubgroups( G ), Y -> Size( Y ) mod p = 0 and FS_PPart( Size( Y ), p ) <= pp );
+    W := Normalizer( G, T );
+    res := [];
+    for Y0 in perf do
+        TY := SylowSubgroup( Y0, p );
+        subsU := Filtered( List( ConjugacyClassesSubgroups( T ), Representative ), U -> Size( U ) = Size( TY ) );
+        subsU := Concatenation( List( subsU, U -> AsList( ConjugacyClassSubgroups( T, U ) ) ) );
+        for U in subsU do
+            g := RepresentativeAction( G, TY, U );
+            if g = fail then continue; fi;
+            Y := ConjugateSubgroup( Y0, g );
+            NY := Normalizer( G, Y );
+            NU := Normalizer( G, U );
+            if Size( U ) = pp then
+                tr := [ One( G ) ];
+            else
+                tr := RightTransversal( NU, Intersection( NU, NY ) );
+            fi;
+            for n in tr do
+                # T must normalize Y^n, i.e. T^(n^-1) <= N(Y)
+                if not IsSubset( NY, ConjugateSubgroup( T, n^-1 ) ) then continue; fi;
+                Yn := ConjugateSubgroup( Y, n );
+                R0 := ConjugateSubgroup( Intersection( NY, NU ), n );
+                if not IsSubset( R0, T ) then continue; fi;
+                if Size( R0 ) = Size( T ) then
+                    ints := [ T ];
+                else
+                    ints := Concatenation( [ T, R0 ], IntermediateSubgroups( R0, T ).subgroups );
+                fi;
+                for M in ints do
+                    H := ClosureGroup( Yn, M );
+                    if FS_PPart( Size( H ), p ) <> pp then continue; fi;
+                    if ForAny( res, K -> Size( K ) = Size( H ) and RepresentativeAction( W, K, H ) <> fail ) then continue; fi;
+                    if HasStronglyPEmbeddedSubgroup( H, p ) then Add( res, H ); fi;
+                od;
+            od;
+        od;
+    od;
+    return res;
+end );
+
+#############################################################################
+##
+#F  FS_CandidatesInGroup( <G>, <p>, <T>, <elab>, <opts> )
+##
+##  The subgroups H of G with T as Sylow p-subgroup and a strongly
+##  p-embedded subgroup, one for each G-class (conjugated so that T <= H),
+##  by the method appropriate for the size of G:
+##   - the subgroup lattice of G if G is small enough (complete);
+##   - otherwise the perfect subgroup method FS_PerfectCandidates, which is
+##     complete when T is neither cyclic nor quaternion (then no candidate
+##     is p-soluble), supplemented, if T is cyclic or quaternion, by the
+##     p-soluble candidates inside the monomial groups of the T-invariant
+##     frames when elab = true (G = GL(n,p)); in this last case the
+##     enumeration of p-soluble candidates is not complete, which is
+##     reported through InfoFusionSystems.
+##
+BindGlobal( "FS_CandidatesInGroup", function( G, p, T, elab, opts )
+    local pp, res, cls, H, Tsyl, g, r, cyc;
+    pp := Size( T );
+    cyc := FS_IsQuaternionOrCyclic( T );
+    if FS_LatticeFeasible( G, p, pp ) then
+        cls := FS_SubgroupClassesWithPPart( G, p, pp );
+        res := [];
+        for H in cls do
+            Tsyl := SylowSubgroup( H, p );
+            if IsNormal( H, Tsyl ) then continue; fi;
+            g := RepresentativeAction( G, Tsyl, T );
+            if g = fail then continue; fi;
+            H := ConjugateSubgroup( H, g );
+            if HasStronglyPEmbeddedSubgroup( H, p ) then Add( res, H ); fi;
+        od;
+        return res;
+    fi;
+    if Size( G ) > FS_Options.perfectBound then
+        Info( InfoFusionSystems, 1, "|G| = ", Size( G ), " is too large for the enumeration of automizer candidates" );
+        return [];
+    fi;
+    r := CALL_WITH_CATCH( FS_PerfectCandidates, [ G, p, T ] );
+    if r[1] then
+        res := r[2];
+        if not cyc then return res; fi;
+        Info( InfoFusionSystems, 1, "|G| = ", Size( G ), ": the p-soluble automizer candidates are not enumerated completely" );
+    else
+        Info( InfoFusionSystems, 1, "|G| = ", Size( G ), ": perfect subgroups could not be computed" );
+        res := [];
+    fi;
+    return res;
 end );
 
 #############################################################################
@@ -72,7 +182,7 @@ end );
 ##  frame method for elementary abelian P with a huge Out(P).
 ##
 InstallGlobalFunction( ProtoEssentialAutomizerCandidates, function( arg )
-    local S, P, opts, p, h, outd, Mbar, T, Tbar, pp, cls, res, H, g, Tsyl, user, t;
+    local S, P, opts, p, h, outd, Mbar, T, Tbar, pp, cls, res, H, g, Tsyl, user, t, W;
     S := arg[1]; P := arg[2];
     opts := rec();
     if Length( arg ) > 2 then opts := arg[3]; fi;
@@ -99,97 +209,85 @@ InstallGlobalFunction( ProtoEssentialAutomizerCandidates, function( arg )
                 Add( res, H );
             fi;
         od;
-    elif FS_LatticeFeasible( Mbar, p, pp ) then
-        cls := FS_SubgroupClassesWithPPart( Mbar, p, pp );
-        res := [];
-        for H in cls do
-            Tsyl := SylowSubgroup( H, p );
-            if IsNormal( H, Tsyl ) then continue; fi;
-            g := RepresentativeAction( Mbar, Tsyl, Tbar );
-            if g = fail then continue; fi;
-            H := ConjugateSubgroup( H, g );
-            if HasStronglyPEmbeddedSubgroup( H, p ) then Add( res, H ); fi;
-        od;
-        Info( InfoFusionSystems, 2, "automizer candidates for |P| = ", Size( P ), ": |Out(P)| = ", Size( Mbar ),
-              ", ", Length( cls ), " subgroup classes with p-part ", pp, ", ", Length( res ), " candidates (",
-              Runtime() - t, " ms)" );
-    elif IsElementaryAbelian( P ) and ( not IsBound( opts.allowFrames ) or opts.allowFrames ) then
-        Info( InfoFusionSystems, 1, "|Out(P)| = ", Size( Mbar ), " for |P| = ", Size( P ),
-              " is too large for a complete enumeration; using monomial (frame) candidates only" );
-        res := FS_FrameCandidates( S, P, Tbar );
     else
-        Info( InfoFusionSystems, 1, "|Out(P)| = ", Size( Mbar ), " for |P| = ", Size( P ),
-              " is too large for a complete enumeration of automizer candidates; attempting it anyway" );
-        cls := FS_SubgroupClassesWithPPart( Mbar, p, pp );
-        res := [];
-        for H in cls do
-            Tsyl := SylowSubgroup( H, p );
-            if IsNormal( H, Tsyl ) then continue; fi;
-            g := RepresentativeAction( Mbar, Tsyl, Tbar );
-            if g = fail then continue; fi;
-            H := ConjugateSubgroup( H, g );
-            if HasStronglyPEmbeddedSubgroup( H, p ) then Add( res, H ); fi;
-        od;
+        res := FS_CandidatesInGroup( Mbar, p, Tbar, IsElementaryAbelian( P ), opts );
+        if IsElementaryAbelian( P ) and FS_IsQuaternionOrCyclic( Tbar ) and not FS_LatticeFeasible( Mbar, p, pp )
+           and ( not IsBound( opts.allowFrames ) or opts.allowFrames ) then
+            Info( InfoFusionSystems, 1, "|Out(P)| = ", Size( Mbar ), " for |P| = ", Size( P ),
+                  ": adding the candidates from the monomial groups of the Aut_S(P)-invariant frames" );
+            W := Normalizer( Mbar, Tbar );
+            for H in FS_FrameCandidates( S, P, Tbar, opts ) do
+                if ForAny( res, K -> Size( K ) = Size( H ) and RepresentativeAction( W, K, H ) <> fail ) then continue; fi;
+                Add( res, H );
+            od;
+        fi;
+        Info( InfoFusionSystems, 2, "automizer candidates for |P| = ", Size( P ), ": |Out(P)| = ", Size( Mbar ),
+              ", ", Length( res ), " candidates (", Runtime() - t, " ms)" );
     fi;
     return List( res, H -> PreImage( outd.q, H ) );
 end );
 
 #############################################################################
 ##
-#F  FS_FrameCandidates( <S>, <P>, <Tbar> )
+#F  FS_FrameCandidates( <S>, <P>, <Tbar>, <opts> )
 ##
 ##  P elementary abelian of rank n, considered as a vector space V over
 ##  GF(p), T = Aut_S(P).  A frame is a set of n one-dimensional subspaces
 ##  of V spanning V; its stabilizer in GL(V) is a monomial group
-##  GL(1,p) wr Sym(n).  We consider the T-invariant frames up to the action
-##  of N_{GL(V)}(T) and return the subgroups H of the corresponding monomial
-##  groups with Tbar as Sylow p-subgroup and a strongly p-embedded subgroup
-##  (one for each class).  This covers the automizers of abelian essential
-##  subgroups which are "imprimitive" (e.g. in alternating groups) but it is
-##  not a complete enumeration.
+##  GL(1,p) wr Sym(n).  A T-invariant frame is a union of T-orbits of
+##  lines, i.e. a decomposition of V into transitive permutation modules
+##  for T with chosen base lines; two T-invariant frames of the same type
+##  (multiset of orbit lengths, with the same stabilizers) are conjugate
+##  under C_{GL(V)}(T) (map base lines to base lines and extend
+##  T-equivariantly).  We therefore take one frame of each type and return
+##  the subgroups H of the corresponding monomial groups with Tbar as Sylow
+##  p-subgroup and a strongly p-embedded subgroup, one for each class.
+##  This covers the "imprimitive" automizers of abelian essential subgroups
+##  (e.g. in alternating groups) but it is not a complete enumeration of
+##  all automizer candidates.
 ##
-InstallGlobalFunction( FS_FrameCandidates, function( S, P, Tbar )
-    local p, h, outd, Mbar, q, n, pcgs, lines, lineOf, Tgens, orbs, frames, res, gensP, i, j, mon, monsub, cls, H, Tsyl, g,
-          frame, D, Dgens, Pgens, perm, sigma, vec, img, Hs, W, seen, pos, orbitsOfLines, blocks, fr, candfr, k, l, mat;
+InstallGlobalFunction( FS_FrameCandidates, function( S, P, Tbar, opts )
+    local p, h, outd, Mbar, q, n, pcgs, lines, Tgens, Tgrp, orbs, frames, types, res, i, mon, cls, H,
+          frame, Dgens, Pgens, sigma, img, W, candfr, typ, stabsize, D, NT, Ks, K, X, ints, N, L;
     p := PrimePGroup( P );
     h := FS_AutHandle( P );
     outd := FS_OutData( P );
     Mbar := outd.Mbar; q := outd.q;
     pcgs := FS_PcgsOf( P );
     n := Length( pcgs );
-    # all one-dimensional subspaces as subgroups
-    lines := List( Filtered( AsList( P ), x -> not IsOne( x ) ), x -> SubgroupNC( P, [ x ] ) );
-    lines := DuplicateFreeList( lines );
+    lines := DuplicateFreeList( List( Filtered( AsList( P ), x -> not IsOne( x ) ), x -> SubgroupNC( P, [ x ] ) ) );
     Tgens := List( GeneratorsOfGroup( Tbar ), x -> h.from( PreImagesRepresentative( q, x ) ) );
-    # orbits of T on lines
-    orbs := OrbitsDomain( Group( Tgens ), lines, FS_OnImage );
-    # T-invariant frames: unions of T-orbits of total size n which are independent
-    frames := [];
+    Tgrp := Group( Tgens );
+    orbs := OrbitsDomain( Tgrp, lines, FS_OnImage );
+    # the type of an orbit: its length and the order of the stabilizer of a line
+    stabsize := List( orbs, o -> Size( Tbar ) / Length( o ) );
+    frames := []; types := [];
     candfr := function( chosen, start, size )
-        local k, new, gens;
+        local k, gens, t;
         if size = n then
-            gens := Concatenation( List( chosen, o -> List( o, L -> GeneratorsOfGroup( L )[1] ) ) );
-            if Size( SubgroupNC( P, gens ) ) = Size( P ) then Add( frames, Concatenation( chosen ) ); fi;
+            gens := Concatenation( List( chosen, k -> List( orbs[k], L -> GeneratorsOfGroup( L )[1] ) ) );
+            if Size( SubgroupNC( P, gens ) ) = Size( P ) then
+                t := SortedList( List( chosen, k -> [ Length( orbs[k] ), stabsize[k] ] ) );
+                if not t in types then
+                    Add( types, t );
+                    Add( frames, Concatenation( List( chosen, k -> orbs[k] ) ) );
+                fi;
+            fi;
             return;
         fi;
         for k in [ start .. Length( orbs ) ] do
             if size + Length( orbs[k] ) <= n then
-                candfr( Concatenation( chosen, [ orbs[k] ] ), k + 1, size + Length( orbs[k] ) );
+                candfr( Concatenation( chosen, [ k ] ), k + 1, size + Length( orbs[k] ) );
             fi;
         od;
     end;
     candfr( [], 1, 0 );
+    Info( InfoFusionSystems, 2, Length( frames ), " types of T-invariant frames: ", types );
     if Length( frames ) = 0 then return []; fi;
-    # frames up to the action of W = N_{Out(P)}(Tbar)
     W := Normalizer( Mbar, Tbar );
-    seen := []; res := [];
+    res := [];
     for frame in frames do
-        if ForAny( seen, fr -> RepresentativeAction( W, Set( fr ), Set( frame ),
-                 function( fs, x ) local a; a := h.from( PreImagesRepresentative( q, x ) ); return Set( List( fs, L -> ImagesSet( a, L ) ) ); end ) <> fail ) then
-            continue;
-        fi;
-        Add( seen, frame );
-        # the monomial group of the frame: generated by scalings of one line and permutations of the lines
+        # the monomial group of the frame
         Pgens := List( frame, L -> GeneratorsOfGroup( L )[1] );
         Dgens := [];
         for i in [ 1 .. n ] do
@@ -202,15 +300,33 @@ InstallGlobalFunction( FS_FrameCandidates, function( S, P, Tbar )
             Add( Dgens, GroupHomomorphismByImagesNC( P, P, Pgens, img ) );
         od;
         mon := Image( q, FS_AutSubgroup( h, Dgens ) );
-        cls := FS_SubgroupClassesWithPPart( mon, p, Size( Tbar ) );
+        if not IsSubset( mon, Tbar ) then continue; fi;
+        cls := FS_CandidatesInGroup( mon, p, Tbar, false, opts );
+        if not FS_LatticeFeasible( mon, p, Size( Tbar ) ) and FS_IsQuaternionOrCyclic( Tbar ) then
+            # the p-soluble candidates H = K N with K = O_{p'}(H) inside the
+            # diagonal subgroup D of the monomial group and N <= N_mon(Tbar)
+            D := Image( q, FS_AutSubgroup( h, Dgens{[ 1 .. n ]} ) );
+            NT := Normalizer( mon, Tbar );
+            Ks := SubgroupsSolvableGroup( D, rec( actions := List( GeneratorsOfGroup( Tbar ), x -> ConjugatorAutomorphismNC( D, x ) ) ) );
+            for K in Ks do
+                if Size( K ) = 1 then continue; fi;
+                X := Normalizer( NT, K );
+                if Size( X ) = Size( Tbar ) then
+                    ints := [ Tbar ];
+                else
+                    ints := Concatenation( [ Tbar, X ], IntermediateSubgroups( X, Tbar ).subgroups );
+                fi;
+                for N in ints do
+                    if FS_PPart( Size( N ), p ) <> Size( Tbar ) then continue; fi;
+                    H := ClosureGroup( K, N );
+                    if FS_PPart( Size( H ), p ) <> Size( Tbar ) then continue; fi;
+                    if ForAny( cls, L -> Size( L ) = Size( H ) and RepresentativeAction( mon, L, H ) <> fail ) then continue; fi;
+                    if HasStronglyPEmbeddedSubgroup( H, p ) then Add( cls, H ); fi;
+                od;
+            od;
+        fi;
         for H in cls do
-            Tsyl := SylowSubgroup( H, p );
-            if IsNormal( H, Tsyl ) then continue; fi;
-            g := RepresentativeAction( Mbar, Tsyl, Tbar );
-            if g = fail then continue; fi;
-            H := ConjugateSubgroup( H, g );
-            if not HasStronglyPEmbeddedSubgroup( H, p ) then continue; fi;
-            if ForAny( res, K -> Size( K ) = Size( H ) and RepresentativeAction( Mbar, K, H ) <> fail ) then continue; fi;
+            if ForAny( res, K -> Size( K ) = Size( H ) and RepresentativeAction( W, K, H ) <> fail ) then continue; fi;
             Add( res, H );
         od;
     od;
