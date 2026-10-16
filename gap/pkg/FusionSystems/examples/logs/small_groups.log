@@ -1,0 +1,56 @@
+D8 rec(
+   ): 1 fusion systems (353 ms)
+   [ 1, [ 4, 4 ], [ 6, 6 ] ]
+  F_S(PSL(2,7)) found: true
+D8 rec(
+  OpTriv := false,
+  pPerfect := false ): 3 fusion systems (310 ms)
+   [ 1, [ 4, 4 ], [ 6, 6 ] ]
+   [ 1, [ 4 ], [ 6 ] ]
+   [ 1, [  ], [  ] ]
+3^{1+2}_+ rec(
+   ): 4 fusion systems (2772 ms)
+   [ 4, [ 9, 9 ], [ 48, 48 ] ]
+   [ 8, [ 9, 9 ], [ 48, 48 ] ]
+   [ 8, [ 9 ], [ 48 ] ]
+   [ 16, [ 9 ], [ 48 ] ]
+  F_S(PSL(3,3)) found: true
+  F_S(M12) found: true
+3^{1+2}_+ rec(
+  OpTriv := false,
+  pPerfect := false ): 15 fusion systems (2844 ms)
+   [ 2, [ 9 ], [ 24 ] ]
+   [ 4, [ 9, 9 ], [ 48, 48 ] ]
+   [ 4, [ 9 ], [ 48 ] ]
+   [ 8, [ 9, 9 ], [ 48, 48 ] ]
+   [ 8, [ 9 ], [ 48 ] ]
+   [ 16, [ 9 ], [ 48 ] ]
+   [ 1, [  ], [  ] ]
+   [ 2, [  ], [  ] ]
+   [ 2, [  ], [  ] ]
+   [ 4, [  ], [  ] ]
+   [ 4, [  ], [  ] ]
+   [ 8, [  ], [  ] ]
+   [ 8, [  ], [  ] ]
+   [ 8, [  ], [  ] ]
+   [ 16, [  ], [  ] ]
+Q8 rec(
+  OpTriv := false,
+  pPerfect := false ): 2 fusion systems (35 ms)
+   [ 1, [  ], [  ] ]
+   [ 3, [  ], [  ] ]
+D16 rec(
+   ): 1 fusion systems (560 ms)
+   [ 1, [ 4, 4 ], [ 6, 6 ] ]
+  F_S(PSL(2,17)) found: true
+SD16 rec(
+   ): 1 fusion systems (529 ms)
+   [ 1, [ 8, 4 ], [ 6, 6 ] ]
+  F_S(PSL(3,3)) at p=2 found: true
+5^{1+2}_+ rec(
+   ): 3 fusion systems (10302 ms)
+   [ 16, [ 25, 25 ], [ 480, 480 ] ]
+   [ 32, [ 25 ], [ 480 ] ]
+   [ 96, [ 25 ], [ 480 ] ]
+  F_S(PSL(3,5)) found: true
+DONE
