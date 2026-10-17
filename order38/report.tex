@@ -397,49 +397,97 @@ when the group is available in GAP, and are otherwise indicated as
 expectations.  The groups are treated in the order of difficulty (the
 order of the largest elementary abelian proto-essential subgroup).
 
-\subsection{The Sylow 3-subgroup of $\PSL_3(q)$, $3^4\,\|\,q-1$ (maximal class): \texttt{SmallGroup(6561,2221)}}
+\subsection{The Sylow 3-subgroup of $\PSL_3(q)$, $3^4\,\|\,q-1$, and of $\PSU_3(q)$, $3^4\,\|\,q+1$: \texttt{SmallGroup(6561,2221)}}
 \label{sec:psl3}
 
-$S=\big(\{(x,y,z)\in C_{81}^3 : xyz=1\}\rtimes C_3\big)/C_3$ is
-\texttt{SmallGroup(6561,2221)} (verified with \texttt{IsomorphismGroups}); it
-has maximal class, $|\Z(S)|=3$, exponent $81$ and an abelian maximal subgroup
-$A\cong C_{27}\times C_{81}$ (all $4374$ elements of $S\setminus A$ have order $3$); it is the Sylow $3$-subgroup of $\PSL_3(q)$ for
-$3^4\,\|\,q-1$ (e.g.\ $q=163$) and of $\PSU_3(q)$ for $3^4\,\|\,q+1$ (e.g.\
-$q=647$), and $|\Aut(S)|=2^2\cdot3^{13}$.  The proto-essential subgroups are
-three $\Aut(S)$-classes of elementary abelian subgroups $E\cong 3^2$ with
-$|N_S(E):E|=3$ (so $\Out_\F(E)\in\{\SL_2(3),\GL_2(3)\}$ by the $\GL_2(3)$
-table) and three $\Aut(S)$-classes of subgroups $3^{1+2}_+$ with
-$|N_S(E):E|=3$.  There are five Borel subgroups, $|\Out_\F(S)|\in\{1,2,2,2,4\}$,
-and the computation takes $17$ seconds.  Result: exactly $7$ fusion systems.
+Let $T_3=\{\mathrm{diag}(a,b,c): a,b,c\in C_{81},\ abc=1\}\cong C_{81}^2$, let
+$c$ be the permutation matrix of a $3$-cycle and $Z=\langle\omega I\rangle$
+($\omega$ a primitive cube root of unity).  Then
+$S=(T_3\rtimes\langle c\rangle)/Z$ is \texttt{SmallGroup(6561,2221)}
+(verified with \texttt{IsomorphismGroups}); it is the Sylow $3$-subgroup of
+$\PSL_3(q)$ for $3^4\,\|\,q-1$ (the smallest case is $q=163$) and of
+$\PSU_3(q)$ for $3^4\,\|\,q+1$ (smallest case $q=647$).  It has maximal
+class, $|\Z(S)|=3$, exponent $81$, the abelian maximal subgroup
+$A=T_3/Z\cong C_{27}\times C_{81}$, all $4374$ elements of $S\setminus A$
+have order $3$, and $|\Aut(S)|=2^2\cdot3^{13}$.  Let $z$ generate $\Z(S)$
+(the image of $d=\mathrm{diag}(1,\omega,\omega^2)$).
+
+\emph{Proto-essential subgroups.}  An $S$-centric elementary abelian
+subgroup of order $9$ contains $z$, hence is $V=\langle z,x\rangle$ with
+$x\in S\setminus A$ of order $3$.  There are exactly three $S$-classes
+$V_1,V_2,V_3$ of such subgroups (one for each $A$-class of elements of the
+coset $cA$; note $z\in[A,S]$), each with $|N_S(V_i):V_i|=3$, and
+$\Aut(S)$ permutes them transitively.  By the $\GL_2(3)$ table,
+$\Out_\F(V_i)\in\{\SL_2(3),\GL_2(3)\}$.  The remaining candidates are three
+$S$-classes (one $\Aut(S)$-class) of subgroups $E\cong3^{1+2}_+$ with
+$|N_S(E):E|=3$.  There are five Borel subgroups, $|\Out_\F(S)|\in\{1,2,2,2,4\}$;
+the Borel with $\Out_\F(S)\cong C_2^2$ fixes one of the three classes of
+rank two subgroups, which we call $V_1$, and interchanges $V_2$ and $V_3$
+(so $V_2$ and $V_3$ are $\F$-conjugate whenever $\Out_\F(S)\cong C_2^2$).
+The computation (\texttt{AllFusionSystems}, $17$ seconds) gives exactly
+$7$ fusion systems.  In the table the essential subgroups are listed up to
+$\F$-conjugacy; $[2]$ marks an $\F$-class consisting of two $S$-classes.
 
 \begin{center}
-\begin{tabular}{clll}
+\begin{tabular}{cllll}
 \toprule
-$\F$ & $\Out_\F(S)$ & essential subgroups $E$, $|N_S(E):E|$, $\Out_\F(E)$ & remarks\\
+$\F$ & $\Out_\F(S)$ & essential subgroups $E$ (all with $|N_S(E):E|=3$) & $\Out_\F(E)$ & realised by\\
 \midrule
-1 & $C_2$ & $3^2$, $3$, $\SL_2(3)$; $3^2$, $3$, $\SL_2(3)$; $3^2$, $3$, $\SL_2(3)$ & see text\\
-2 & $C_2$ & $3^2$, $3$, $\SL_2(3)$; $3^2$, $3$, $\SL_2(3)$ & expected $\PSL_3(q)$\\
-3 & $C_2$ & $3^2$, $3$, $\SL_2(3)$ & see text\\
-4 & $C_2^2$ & $3^{1+2}_+$, $3$, $\GL_2(3)$; $3^2$, $3$, $\SL_2(3)$ & see text\\
-5 & $C_2^2$ & $3^2$, $3$, $\GL_2(3)$; $3^2$, $3$, $\SL_2(3)$ & see text\\
-6 & $C_2^2$ & $3^2$, $3$, $\GL_2(3)$ & see text\\
-7 & $C_2^2$ & $3^2$, $3$, $\SL_2(3)$ & see text\\
+1 & $C_2$ & $V_1$, $V_2$, $V_3$ & $\SL_2(3)$ each & $\PSL_3(163)$, $\PSU_3(647)$\\
+2 & $C_2$ & two of the $V_i$ & $\SL_2(3)$ each & \textcolor{red}{none known (exotic?)}\\
+3 & $C_2$ & one $V_i$ & $\SL_2(3)$ & \textcolor{red}{none known (exotic?)}\\
+4 & $C_2^2$ & $E\cong3^{1+2}_+$; $V_2\sim V_3$ $[2]$ & $\GL_2(3)$; $\SL_2(3)$ & \textcolor{red}{none known (exotic?)}\\
+5 & $C_2^2$ & $V_1$; $V_2\sim V_3$ $[2]$ & $\GL_2(3)$; $\SL_2(3)$ & $\PSL_3(163){:}2$, $\PSU_3(647){:}2$\\
+6 & $C_2^2$ & $V_1$ & $\GL_2(3)$ & \textcolor{red}{none known (exotic?)}\\
+7 & $C_2^2$ & $V_2\sim V_3$ $[2]$ & $\SL_2(3)$ & \textcolor{red}{none known (exotic?)}\\
 \bottomrule
 \end{tabular}
 \end{center}
 
-\textcolor{red}{[Identification in progress: the fusion system of
-$\PSL_3(163)$ (as a permutation group on the $26\,733$ points of the
-projective plane) and of its extension by the graph automorphism are being
-computed for comparison with \texttt{IsIsomorphicFusionSystems}.  Saturated
-fusion systems on $3$-groups of maximal class were classified by
-D\'{\i}az, Ruiz and Viruel (\emph{All $p$-local finite groups of rank two
-for odd prime $p$}, Trans.\ AMS 2007); the seven systems above should be
-compared with their table for the group $B(3,8;0,0,0)$, which contains
-exotic systems.]}  The run of \texttt{AllFusionSystems} on
-\texttt{SmallGroup(6561,2221)} from the library (Stage 2 of the pipeline,
-with the candidates of Stage 1a) gives the same seven systems in $19$
-seconds.
+\emph{Identification.}  For $G=\PSL_3(q)$ every element of order $3$ in
+$S\setminus A$ has eigenvalues $1,\omega,\omega^2$ and is therefore
+$G$-conjugate to $z$; the preimage of each $V_i$ in $\SL_3(q)$ is the
+Heisenberg group $3^{1+2}_+$ and $N_G(V_i)\cong 3^2{:}\SL_2(3)$ (the Hessian
+group, which lies in $\PSL_3(q)$ exactly when $9\mid q-1$), so all three
+$V_i$ are essential in $\F_S(G)$ with $\Out_G(V_i)\cong\SL_2(3)$,
+$\Out_G(S)\cong C_2$ (the transposition of the Weyl group), and no
+$3^{1+2}_+$ is essential.  The graph automorphism normalises one of the three
+classes, where it enlarges the automiser to $\GL_2(3)$, and interchanges
+the other two.  The unitary case is identical with $q+1$ in place of $q-1$.
+These descriptions were confirmed by computing $\F_S(G)$ for
+$G=\PSL_3(163)$, $\PSL_3(163){:}2$ (graph automorphism), $\PSU_3(647)$ and
+$\PSU_3(647){:}2$ (field automorphism) and testing isomorphism with the
+seven systems (\texttt{scripts/reference\_l3u3.g}, log
+\texttt{logs/reference\_l3u3.log}; $3$ to $40$ seconds per group).  Since
+$\PSL_3(163)$ has smallest permutation degree $26\,733$ and $\PSU_3(647)$ is
+far beyond any permutation representation, the groups are never
+constructed: for $U\le S$ with $z\in\Z(U)$ the normaliser $N_G(U)$ is
+generated by $N_{C_G(z)}(U)$, where $C_G(z)=(T\rtimes\langle c\rangle)/Z$ is
+the monomial group of order $3(q\mp1)^2/3$, together with one element
+$g_y\in N_G(U)$ with $z^{g_y}=y$ for each $y$ in the $N_G(U)$-orbit of $z$;
+$g_y=hg_0$ with $g_0$ an explicit conjugator $z\to y$ (a matrix of
+eigenvectors of a lift of $y$, normalised to determinant $1$ and, in the
+unitary case, to orthonormal rows) and $h\in C_G(z)$ a conjugator of $U$ to
+$U^{g_0^{-1}}\le C_G(z)$.  The extensions by the outer automorphism are
+handled in $6$-dimensional matrix models.  The systems so obtained were
+checked to be saturated with $O_3(\F)=1=O^3(\F)$ by the package before the
+isomorphism test.  (This computation uncovered a bug in the isomorphism
+test of the package: two systems whose stored lists of essential subgroups
+contained different numbers of $S$-class representatives of the same
+$\F$-class were declared non-isomorphic.  It is fixed, the test suite
+passes, and none of the results reported elsewhere in this document used
+the affected code path.)
+
+\emph{Exotic systems.}  To our knowledge the almost simple groups with a
+Sylow $3$-subgroup isomorphic to $S$ are $\PSL_3(q)$, $\PSU_3(q)$ (with
+$3^4\,\|\,q\mp1$) and their extensions by an outer automorphism of order
+$2$, so that $\F_2$, $\F_3$, $\F_4$, $\F_6$ and $\F_7$ are candidates for
+exotic fusion systems.  Saturated fusion systems on $3$-groups of maximal
+class were classified by D\'{\i}az, Ruiz and Viruel (\emph{All $p$-local
+finite groups of rank two for odd prime $p$}, Trans.\ AMS 359 (2007)), who
+found exotic systems on these groups; \textcolor{red}{the comparison of the
+five systems with their table is still to be made (the paper could not be
+accessed from the computing environment).}
 
 \subsection{The other maximal class group with $|\Z(S)|=3$ and exponent 81: \texttt{SmallGroup(6561,2225)}}
 \label{sec:2225}
@@ -454,7 +502,7 @@ is exactly one fusion system:
 \toprule
 $\F$ & $\Out_\F(S)$ & essential subgroups & remarks\\
 \midrule
-1 & $C_2$ & $3^2$, $3$, $\SL_2(3)$ & \textcolor{red}{[to be identified]}\\
+1 & $C_2$ & $3^2$, $3$, $\SL_2(3)$ & \textcolor{red}{no realising group known: candidate exotic system (cf.\ DRV)}\\
 \bottomrule
 \end{tabular}
 \end{center}
