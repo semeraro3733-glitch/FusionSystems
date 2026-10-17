@@ -40,13 +40,13 @@ end;
 FS38_MakeFingerprintTable := function( file )
     local out, k, i, E, fp, gl, tab;
     out := OutputTextFile( file, false ); SetPrintFormattingStatus( out, false );
-    AppendTo( out, "# FINGERPRINTS[k] = list of [ fingerprint, id, glOrder, |Aut| ] for the groups of order 3^k with Aut not a 3-group\n" );
+    AppendTo( out, "# FINGERPRINTS[k] = list of [ fingerprint, id, glOrder, |Aut| ] for the groups of order 3^k with |Aut| not a power of 3\n" );
     AppendTo( out, "FINGERPRINTS := [ , , " );
     for k in [ 3 .. 7 ] do
         AppendTo( out, "[\n" );
         for i in [ 1 .. NumberSmallGroups( 3^k ) ] do
-            gl := AUT3TABLE[k][i][1];
-            if gl = 1 or SmallestRootInt( gl ) = 3 then continue; fi;
+            gl := AUT3TABLE[k][i][2];      # |Aut(E)|
+            if gl = 3^LogInt( gl, 3 ) then continue; fi;
             E := SmallGroup( 3^k, i );
             fp := FS38_Fingerprint( E );
             AppendTo( out, "[ ", fp, ", ", i, ", ", gl, ", ", AUT3TABLE[k][i][2], " ],\n" );

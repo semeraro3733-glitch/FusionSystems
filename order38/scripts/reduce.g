@@ -382,7 +382,7 @@ FS38_Cheap := function( S )
         # forced by a non-cyclic Out_S(E) must fit into Out(E)
         a := AutomorphismGroupPGroup( E );
         FS38_Timers.aut := FS38_Timers.aut + Runtime() - t; t := Runtime();
-        if a.glOrder = 1 or SmallestRootInt( a.glOrder ) = 3 then continue; fi;
+        if a.size = 3^LogInt( a.size, 3 ) then continue; fi;     # Aut(E) is a 3-group
         if a.size mod FS38_RequiredDivisor( type ) <> 0 then continue; fi;
         FS38_Counts.aut := FS38_Counts.aut + 1;
         # the exact radical test Aut_S(E) meet O_3(Aut(E)) = Inn(E), and

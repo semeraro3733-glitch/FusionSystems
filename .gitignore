@@ -11,3 +11,5 @@ order38/data/stage1b.txt
 order38/tables/stage1a_stats.tex
 order38/data/stage1b_survivors.txt
 order38/data/stage2.txt
+order38/data/invalid_run1/
+order38/logs/invalid_run1/
