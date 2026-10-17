@@ -16,19 +16,13 @@
 ##        element of N_S(E) \ E acts trivially on all factors of a chain of
 ##        characteristic subgroups of E (the stability group of such a chain
 ##        is a normal 3-subgroup of Aut(E), which meets Out_F(E) trivially),
-##        and Aut(E) is not a 3-group (looked up by IdGroup(E) in a table of
-##        the automorphism group orders of all groups of order <= 3^7).
+##        Aut(E) is not a 3-group (autpgrp), Aut_S(E) meets O_3(Aut(E)) in
+##        Inn(E), and Aut(E) is insoluble unless Out_S(E) is cyclic.
 ##   (R3) no nontrivial subgroup W of S which is "visibly characteristic" in S
 ##        and in every candidate E (so W is normal in F, W <= O_3(F)).
 ##
 LoadPackage( "FusionSystems", false );
 LoadPackage( "sglppow", false );
-# the table of automorphism group orders of the groups of order <= 3^7 (aut3table.g)
-if IsExistingFile( "/home/user/FusionSystems/order38/data/aut3table.g" ) then
-    Read( "/home/user/FusionSystems/order38/data/aut3table.g" );
-else
-    FS38_AutIs3Group := E -> false;
-fi;
 
 # characteristic subgroups of a p-group X built from standard ones, closed
 # once under intersections and products
@@ -148,7 +142,7 @@ end;
 #   inv     [ |Z(S)|, class, rank, exponent, |S'|, |Phi(S)| ]
 FS38_Cheap := function( S )
     local Z, cands, seen, seeninv, E, inv, N, q, Q, type, Phi, pairs, C, res, charsE,
-          charS, W, result, pre;
+          charS, W, result, pre, a;
     Z := Center( S );
     if Index( S, Z ) <= 9 then return rec( status := "reject", reason := "|S:Z(S)| <= 9" ); fi;
     cands := FS38_Candidates( S );
@@ -179,9 +173,15 @@ FS38_Cheap := function( S )
         pairs := FS38_CoveringPairs( E, charsE );
         C := FS38_StabilityKernel( N, pairs );
         if not IsSubset( E, C ) then continue; fi;
-        # (R2e) an essential subgroup has a 3'-automorphism (Out_S(E) is not normal in Out_F(E))
-        if Size( E ) <= 3^7 and FS38_AutIs3Group( E ) then continue; fi;
-        Add( res, rec( E := E, order := Size( E ), index := Size( Q ), type := type,
+        # (R2e) an essential subgroup has a 3'-automorphism (Out_S(E) is not
+        # normal in Out_F(E)): Aut(E) must not be a 3-group
+        a := AutomorphismGroupPGroup( E );
+        if a.glOrder = 1 or SmallestRootInt( a.glOrder ) = 3 then continue; fi;
+        # the exact radical test Aut_S(E) meet O_3(Aut(E)) = Inn(E), and
+        # Aut(E) insoluble unless Out_S(E) is cyclic [Parker-Semeraro]
+        if not FS_RadicalTest( S, E ) then continue; fi;
+        if not IsCyclic( Q ) and IsSolvableGroup( FS_AutHandle( E ).model ) then continue; fi;
+        Add( res, rec( E := E, order := Size( E ), index := Size( Q ), type := type, autorder := a.size,
                        elab := IsElementaryAbelian( E ), abelian := IsAbelian( E ), rank := RankPGroup( E ), chars := charsE ) );
     od;
     if Length( res ) = 0 then return rec( status := "reject", reason := "no candidate essential subgroup" ); fi;
@@ -209,7 +209,7 @@ FS38_Line := function( id, r )
     s := Concatenation( s, String( r.inv ), ";" );
     for c in r.cands do
         s := Concatenation( s, "[", String( c.order ), ",", String( c.index ), ",", c.type, ",",
-                            String( c.elab ), ",", String( c.abelian ), ",", String( c.rank ), "]" );
+                            String( c.elab ), ",", String( c.abelian ), ",", String( c.rank ), ",", String( c.autorder ), "]" );
     od;
     return s;
 end;

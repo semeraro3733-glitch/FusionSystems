@@ -13,11 +13,14 @@
 ##
 InstallGlobalFunction( FS_ExponentsAutPGroup, function( B, auto )
     local exps, imgs, perm, news, tmpa, j, e, s, n, subs, base;
-    if not IsBound( B.agHomom ) then return fail; fi;
     exps := List( B.agAutos, x -> 0 );
     imgs := List( B.gens, x -> ExponentsOfPcElement( B.spec, x ^ auto ) );
     base := imgs{[ 1 .. B.rank ]}{[ 1 .. B.rank ]};
     if base <> IdentityMat( B.rank ) then
+        # the action on the Frattini quotient: only available when autpgrp
+        # has converted a (soluble) GL-part; if the GL-part is trivial
+        # (agHomom unbound) a nontrivial action cannot be decomposed
+        if not IsBound( B.agHomom ) then return fail; fi;
         base := base * One( B.field );
         if not base in Source( B.agHomom ) then return fail; fi;
         perm := Image( B.agHomom, base );
