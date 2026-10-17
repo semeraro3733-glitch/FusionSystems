@@ -5,3 +5,4 @@ order38/report.toc
 order38/data/stage1a/part_*.txt
 order38/data/stage1a/progress_*.txt
 order38/logs/*.log
+order38/data/stage1a/pid_*.txt
