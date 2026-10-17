@@ -140,27 +140,43 @@ od;
 if IsExistingFile( "/home/user/FusionSystems/order38/data/fingerprints.g" ) then
     Read( "/home/user/FusionSystems/order38/data/fingerprints.g" );
     FS38_FingerprintSets := List( [ 1 .. 7 ], k -> fail );
-    FS38_CheapFingerprintSets := List( [ 1 .. 7 ], k -> fail );
+    FS38_FingerprintSets1 := List( [ 1 .. 7 ], k -> fail );
+    FS38_FingerprintSets2 := List( [ 1 .. 7 ], k -> fail );
     for n in [ 3 .. 7 ] do
         FS38_FingerprintSets[n] := Set( List( FINGERPRINTS[n], x -> x[1] ) );
-        FS38_CheapFingerprintSets[n] := Set( List( FINGERPRINTS[n], x -> x[1]{[ 1 .. 11 ]} ) );
+        FS38_FingerprintSets1[n] := Set( List( FINGERPRINTS[n], x -> x[1]{[ 1, 2, 3, 4, 6 ]} ) );
+        FS38_FingerprintSets2[n] := Set( List( FINGERPRINTS[n], x -> x[1]{[ 1 .. 11 ]} ) );
     od;
 else
     FS38_FingerprintSets := fail;
 fi;
-# the cheap part (no conjugacy classes) and the full fingerprint
-FS38_CheapFingerprint := function( E )
-    local Z;
-    Z := Center( E );
-    return [ Size( E ), Size( Z ), Size( FrattiniSubgroup( E ) ), Size( DerivedSubgroup( E ) ), Exponent( E ),
-             NilpotencyClassOfGroup( E ), AbelianInvariants( E ), List( LowerCentralSeriesOfGroup( E ), Size ),
-             List( UpperCentralSeriesOfGroup( E ), Size ), Size( Agemo( E, 3 ) ), Size( Omega( Z, 3 ) ) ];
+# the fingerprint in three levels: level 1 = [ |E|, |Z|, |Phi|, |E'|, class ],
+# level 2 adds exponent, abelian invariants, lower and upper central series,
+# |Agemo|, |Omega(Z)|, level 3 adds the class sizes by element order
+FS38_Fingerprint1 := function( E )
+    return [ Size( E ), Size( Center( E ) ), Size( FrattiniSubgroup( E ) ), Size( DerivedSubgroup( E ) ), NilpotencyClassOfGroup( E ) ];
+end;
+FS38_Fingerprint2 := function( E, fp1 )
+    return [ fp1[1], fp1[2], fp1[3], fp1[4], Exponent( E ), fp1[5], AbelianInvariants( E ), List( LowerCentralSeriesOfGroup( E ), Size ),
+             List( UpperCentralSeriesOfGroup( E ), Size ), Size( Agemo( E, 3 ) ), Size( Omega( Center( E ), 3 ) ) ];
 end;
 FS38_Fingerprint := function( E )
     local fp;
-    fp := FS38_CheapFingerprint( E );
+    fp := FS38_Fingerprint2( E, FS38_Fingerprint1( E ) );
     Add( fp, Collected( List( ConjugacyClasses( E ), c -> [ Order( Representative( c ) ), Size( c ) ] ) ) );
     return fp;
+end;
+# the (order-independent) test: does E have the fingerprint of a group with Aut(E) not a 3-group?
+FS38_FingerprintTest := function( E )
+    local k, fp1, fp2;
+    k := LogInt( Size( E ), 3 );
+    if FS38_FingerprintSets = fail or k < 3 then return true; fi;
+    fp1 := FS38_Fingerprint1( E );
+    if not fp1 in FS38_FingerprintSets1[k] then return false; fi;
+    fp2 := FS38_Fingerprint2( E, fp1 );
+    if not fp2 in FS38_FingerprintSets2[k] then return false; fi;
+    Add( fp2, Collected( List( ConjugacyClasses( E ), c -> [ Order( Representative( c ) ), Size( c ) ] ) ) );
+    return fp2 in FS38_FingerprintSets[k];
 end;
 
 # Aut_S(E) as a matrix group on the elementary abelian group E
@@ -240,10 +256,9 @@ FS38_Cheap := function( S )
         if Size( E ) <= 3 or IsCyclic( E ) then continue; fi;
         elab := IsElementaryAbelian( E );
         if not elab then
-            # Aut(E) is not a 3-group: E must look like one of the few groups
-            # of its order with this property (no normalizer needed)
-            if FS38_FingerprintSets <> fail and LogInt( Size( E ), 3 ) >= 3
-               and not FS38_CheapFingerprint( E ) in FS38_CheapFingerprintSets[ LogInt( Size( E ), 3 ) ] then
+            # Aut(E) is not a 3-group: E must have the fingerprint of one of
+            # the few groups of its order with this property (no normalizer)
+            if not FS38_FingerprintTest( E ) then
                 FS38_Timers.pre := FS38_Timers.pre + Runtime() - t; continue;
             fi;
         fi;
@@ -282,11 +297,6 @@ FS38_Cheap := function( S )
             Add( res, rec( E := E, order := Size( E ), index := Size( Q ), type := type, autorder := Size( GL( n, 3 ) ),
                            elab := true, abelian := true, rank := n, chars := [ E ] ) );
             continue;
-        fi;
-        # the full fingerprint (with the class sizes by element order)
-        if FS38_FingerprintSets <> fail and LogInt( Size( E ), 3 ) >= 3
-           and not FS38_Fingerprint( E ) in FS38_FingerprintSets[ LogInt( Size( E ), 3 ) ] then
-            FS38_Timers.frattini := FS38_Timers.frattini + Runtime() - t; continue;
         fi;
         FS38_Counts.fingerprint := FS38_Counts.fingerprint + 1;
         # the Frattini quotient test, then the finer chain of characteristic subgroups
