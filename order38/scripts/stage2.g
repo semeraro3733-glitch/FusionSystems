@@ -79,8 +79,13 @@ FS38_Stage2 := function( S, name, logfile, opts )
         if not IsBound( opts.candidates ) then opts.candidates := FS38_TableCandidates; fi;
         AppendTo( out, "# ", Length( cheap.cands ), " candidate essential subgroups from Stage 1a, orders ", List( cheap.cands, c -> c.order ), "\n" );
     fi;
+    FS_Diagnostics.incomplete := false; FS_Diagnostics.messages := [];
     L := AllFusionSystems( S, opts );
     AppendTo( out, "# ", Length( L ), " fusion systems (", Runtime() - t, " ms)\n" );
+    if FS_Diagnostics.incomplete then
+        AppendTo( out, "# WARNING: the enumeration of automizer candidates was incomplete: ",
+                  JoinStringsWithSeparator( FS_Diagnostics.messages, "; " ), "\n" );
+    fi;
     res := [];
     for F in L do
         d := FS38_Describe( F );
@@ -89,5 +94,5 @@ FS38_Stage2 := function( S, name, logfile, opts )
     od;
     AppendTo( out, "DONE\n" );
     CloseStream( out );
-    return rec( systems := L, descriptions := res, time := Runtime() - t );
+    return rec( incomplete := FS_Diagnostics.incomplete, systems := L, descriptions := res, time := Runtime() - t );
 end;

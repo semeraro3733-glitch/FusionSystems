@@ -39,7 +39,9 @@ FS38_RunStage2All := function( maxElab, arg... )
         out := OutputTextFile( "/home/user/FusionSystems/order38/data/stage2.txt", true ); SetPrintFormattingStatus( out, false );
         if r[1] then
             AppendTo( out, id, ";", Length( r[2].systems ), ";", Runtime() - t, ";",
-                      JoinStringsWithSeparator( List( r[2].descriptions, FS38_DescLine ), " | " ), "\n" );
+                      JoinStringsWithSeparator( List( r[2].descriptions, FS38_DescLine ), " | " ) );
+            if IsBound( r[2].incomplete ) and r[2].incomplete then AppendTo( out, ";INCOMPLETE" ); fi;
+            AppendTo( out, "\n" );
         else
             AppendTo( out, id, ";error;", String( r[2] ), "\n" );
             AppendTo( Concatenation( "/home/user/FusionSystems/order38/logs/stage2_", String( id ), ".log" ), "ERROR ", String( r[2] ), "\n" );

@@ -122,6 +122,141 @@ end );
 
 #############################################################################
 ##
+#F  FS_PSolubleCyclicCandidates( <G>, <p>, <T> )
+##
+##  T a cyclic p-subgroup of G.  The p-soluble subgroups H of G with T as a
+##  Sylow p-subgroup and O_p(H) = 1 (for cyclic T this is equivalent to H
+##  having a strongly p-embedded subgroup), one for each G-class, conjugated
+##  so that T <= H; or fail if the enumeration is not feasible.
+##
+##  Such an H has Q := O_{p'}(H) <> 1, T acts faithfully on Q, and H/Q has
+##  the normal Sylow p-subgroup QT/Q (H/Q is p-soluble with O_{p'}(H/Q) = 1,
+##  so it embeds into the automorphism group of its cyclic normal subgroup
+##  O_p(H/Q) modulo that subgroup, which is abelian), so that H = QT'R with
+##  T' a G-conjugate of T normalizing Q and R a p'-subgroup of N_G(QT').
+##  The p'-subgroups Q are enumerated through the soluble radical: Q R/R
+##  is a soluble p'-subgroup of G/Rad(G) (taken from the subgroup lattice of
+##  G/Rad(G)), and inside its (soluble) preimage L every p'-subgroup lies
+##  in a Hall p'-subgroup of L.  The conjugates T' of T normalizing Q are
+##  found from the double cosets N_G(T) g N_G(Q).
+##
+InstallGlobalFunction( FS_PSolubleCyclicCandidates, function( G, p, T )
+    local pp, R, nat, Gbar, lat, Qs, Qb, L, pr, K, Qc, Q, res, N, NT, dc, Tp, y, QT, M, nat2, Mb, Rbs, Kb, Rc, H, g, nT,
+          Tps, tgens, t0, c, x, Qg, Qs2, tr, act, fixed, orb;
+    pp := Size( T );
+    if not IsCyclic( T ) then return fail; fi;
+    t0 := First( GeneratorsOfGroup( T ), x -> Order( x ) = pp );
+    if t0 = fail then t0 := First( T, x -> Order( x ) = pp ); fi;
+    R := RadicalGroup( G );
+    nat := NaturalHomomorphismByNormalSubgroup( G, R );
+    Gbar := Image( nat );
+    if Size( Gbar ) > FS_Options.radicalLatticeBound then
+        Info( InfoFusionSystems, 2, "FS_PSolubleCyclicCandidates: |G/Rad(G)| = ", Size( Gbar ), " too large" );
+        return fail;
+    fi;
+    # the p'-subgroups Q of G up to conjugacy, by the image in G/Rad(G)
+    if Size( Gbar ) = 1 then
+        lat := [ Gbar ];
+    else
+        lat := List( ConjugacyClassesSubgroups( Gbar ), Representative );
+        lat := Filtered( lat, Y -> Size( Y ) mod p <> 0 and IsSolvableGroup( Y ) );
+    fi;
+    Qs := [];
+    for Qb in lat do
+        L := PreImage( nat, Qb );
+        pr := Difference( PrimeDivisors( Size( L ) ), [ p ] );
+        if Length( pr ) = 0 then continue; fi;
+        K := HallSubgroup( L, pr );
+        if Size( K ) > FS_Options.hallLatticeBound then
+            Info( InfoFusionSystems, 2, "FS_PSolubleCyclicCandidates: Hall p'-subgroup of order ", Size( K ), " too large" );
+            return fail;
+        fi;
+        # (subgroups of K which are G-conjugate but not K-conjugate are
+        # both kept; the resulting duplicate candidates are removed below)
+        for Qc in ConjugacyClassesSubgroups( K ) do
+            Q := Representative( Qc );
+            if Size( Q ) = 1 or Size( Image( nat, Q ) ) <> Size( Qb ) then continue; fi;
+            Add( Qs, Q );
+        od;
+    od;
+    Info( InfoFusionSystems, 3, "FS_PSolubleCyclicCandidates: ", Length( Qs ), " classes of p'-subgroups" );
+    res := [];
+    NT := Normalizer( G, T );
+    nT := 0;
+    tgens := Filtered( List( [ 1 .. pp ], k -> t0^k ), x -> Order( x ) = pp );
+    for Q in Qs do
+        # T must act faithfully on Q
+        if Size( AutomorphismGroup( Q ) ) mod p <> 0 then continue; fi;
+        N := Normalizer( G, Q );
+        if Size( N ) mod pp <> 0 then continue; fi;
+        Info( InfoFusionSystems, 4, "FS_PSolubleCyclicCandidates: |Q| = ", Size( Q ), ", |G:N(Q)| = ", Size( G ) / Size( N ), " (", Runtime(), " ms)" );
+        # the pairs ( Q*, T* ) with Q* conjugate to Q, T* conjugate to T and
+        # T* <= N_G(Q*), up to simultaneous conjugacy, as triples
+        # [ Q*, T*, g ] with T*^g = T: when Q has few conjugates, the
+        # T-invariant conjugates of Q (up to N_G(T)-conjugacy) with T* = T;
+        # otherwise N is small and the conjugates of T inside N are found
+        # from the conjugacy classes of elements of N
+        Tps := [];
+        if Size( N ) > FS_Options.smallNormalizerBound and Size( G ) / Size( N ) <= FS_Options.conjugateBound then
+            # the T-invariant conjugates Q^g are the fixed points of T on the
+            # cosets N g (Q^g is T-invariant iff T <= N^g iff N g t = N g);
+            # N_G(T) permutes them, one representative per orbit is kept
+            tr := RightTransversal( G, N );
+            act := function( i, g ) return PositionCanonical( tr, tr[i] * g ); end;
+            fixed := Filtered( [ 1 .. Length( tr ) ], i -> act( i, t0 ) = i );
+            for orb in OrbitsDomain( NT, fixed, act ) do
+                Add( Tps, [ ConjugateSubgroup( Q, tr[ orb[1] ] ), T, One( G ) ] );
+            od;
+        else
+            for c in ConjugacyClasses( N ) do
+                x := Representative( c );
+                if Order( x ) <> pp then continue; fi;
+                Tp := Subgroup( N, [ x ] );
+                if ForAny( Tps, U -> IsConjugate( N, U[2], Tp ) ) then continue; fi;
+                g := fail;
+                for y in tgens do
+                    g := RepresentativeAction( G, x, y );
+                    if g <> fail then break; fi;
+                od;
+                if g = fail then continue; fi;
+                Add( Tps, [ Q, Tp, g ] );
+            od;
+        fi;
+        Info( InfoFusionSystems, 4, "FS_PSolubleCyclicCandidates: ", Length( Tps ), " pairs for this Q (", Runtime(), " ms)" );
+        for dc in Tps do
+            Qs2 := dc[1]; Tp := dc[2]; g := dc[3];
+            y := GeneratorsOfGroup( Tp )[1]^( pp / p );
+            if ForAll( GeneratorsOfGroup( Qs2 ), q -> q^y = q ) then continue; fi;   # T* must act faithfully on Q*
+            nT := nT + 1;
+            QT := ClosureGroup( Qs2, Tp );
+            M := Normalizer( Normalizer( G, Qs2 ), QT );
+            nat2 := NaturalHomomorphismByNormalSubgroup( M, QT );
+            Mb := Image( nat2 );
+            pr := Difference( PrimeDivisors( Size( Mb ) ), [ p ] );
+            if Length( pr ) = 0 then
+                Rbs := [ TrivialSubgroup( Mb ) ];
+            elif IsSolvableGroup( Mb ) then
+                Kb := HallSubgroup( Mb, pr );
+                Rbs := List( ConjugacyClassesSubgroups( Kb ), Representative );
+            elif Size( Mb ) <= FS_Options.radicalLatticeBound then
+                Rbs := Filtered( List( ConjugacyClassesSubgroups( Mb ), Representative ), Y -> Size( Y ) mod p <> 0 );
+            else
+                Info( InfoFusionSystems, 2, "FS_PSolubleCyclicCandidates: N(QT)/QT of order ", Size( Mb ), " too large" );
+                return fail;
+            fi;
+            for Rc in Rbs do
+                H := ConjugateSubgroup( PreImage( nat2, Rc ), g );
+                if ForAny( res, X -> Size( X ) = Size( H ) and RepresentativeAction( NT, X, H ) <> fail ) then continue; fi;
+                if HasStronglyPEmbeddedSubgroup( H, p ) then Add( res, H ); fi;
+            od;
+        od;
+    od;
+    Info( InfoFusionSystems, 3, "FS_PSolubleCyclicCandidates: ", nT, " pairs (Q, T'), ", Length( res ), " candidates" );
+    return res;
+end );
+
+#############################################################################
+##
 #F  FS_CandidatesInGroup( <G>, <p>, <T>, <elab>, <opts> )
 ##
 ##  The subgroups H of G with T as Sylow p-subgroup and a strongly
@@ -137,9 +272,21 @@ end );
 ##     reported through InfoFusionSystems.
 ##
 BindGlobal( "FS_CandidatesInGroup", function( G, p, T, elab, opts )
-    local pp, res, cls, H, Tsyl, g, r, cyc;
+    local pp, res, cls, H, Tsyl, g, r, cyc, psol, W, K;
     pp := Size( T );
     cyc := FS_IsQuaternionOrCyclic( T );
+    if IsSolvableGroup( G ) then
+        # every subgroup is p-soluble, and a p-soluble group with a strongly
+        # p-embedded subgroup has cyclic or quaternion Sylow p-subgroups
+        if not cyc then return []; fi;
+        if IsCyclic( T ) and Size( G ) > FS_Options.solvableLatticeBound then
+            psol := FS_PSolubleCyclicCandidates( G, p, T );
+            if psol <> fail then
+                Info( InfoFusionSystems, 2, "|G| = ", Size( G ), " soluble: ", Length( psol ), " automizer candidates (complete)" );
+                return psol;
+            fi;
+        fi;
+    fi;
     if FS_LatticeFeasible( G, p, pp ) then
         cls := FS_SubgroupClassesWithPPart( G, p, pp );
         res := [];
@@ -155,15 +302,32 @@ BindGlobal( "FS_CandidatesInGroup", function( G, p, T, elab, opts )
     fi;
     if Size( G ) > FS_Options.perfectBound then
         Info( InfoFusionSystems, 1, "|G| = ", Size( G ), " is too large for the enumeration of automizer candidates" );
+        FS_Diagnostics.incomplete := true;
+        Add( FS_Diagnostics.messages, Concatenation( "|G| = ", String( Size( G ) ), ": too large for the enumeration of automizer candidates" ) );
         return [];
     fi;
     r := CALL_WITH_CATCH( FS_PerfectCandidates, [ G, p, T ] );
     if r[1] then
         res := r[2];
         if not cyc then return res; fi;
+        # the p-soluble candidates (only possible for cyclic or quaternion T)
+        psol := fail;
+        if IsCyclic( T ) then psol := FS_PSolubleCyclicCandidates( G, p, T ); fi;
+        if psol <> fail then
+            W := Normalizer( G, T );
+            for H in psol do
+                if not ForAny( res, K -> Size( K ) = Size( H ) and RepresentativeAction( W, K, H ) <> fail ) then Add( res, H ); fi;
+            od;
+            Info( InfoFusionSystems, 2, "|G| = ", Size( G ), ": ", Length( psol ), " p-soluble automizer candidates (complete)" );
+            return res;
+        fi;
         Info( InfoFusionSystems, 1, "|G| = ", Size( G ), ": the p-soluble automizer candidates are not enumerated completely" );
+        FS_Diagnostics.incomplete := true;
+        Add( FS_Diagnostics.messages, Concatenation( "|G| = ", String( Size( G ) ), ": p-soluble automizer candidates incomplete" ) );
     else
         Info( InfoFusionSystems, 1, "|G| = ", Size( G ), ": perfect subgroups could not be computed" );
+        FS_Diagnostics.incomplete := true;
+        Add( FS_Diagnostics.messages, Concatenation( "|G| = ", String( Size( G ) ), ": perfect subgroups could not be computed" ) );
         res := [];
     fi;
     return res;
@@ -221,6 +385,8 @@ InstallGlobalFunction( ProtoEssentialAutomizerCandidates, function( arg )
                   ": adding the candidates from the monomial groups of the Aut_S(P)-invariant frames" );
             user := FS_FrameCandidates( S, P, Tbar, opts );
             user.extra := List( res, H -> PreImage( outd.q, H ) );
+            FS_Diagnostics.incomplete := true;
+            Add( FS_Diagnostics.messages, Concatenation( "|P| = ", String( Size( P ) ), " elementary abelian, |Out(P)| = ", String( Size( Mbar ) ), ": frame method (incomplete)" ) );
             Info( InfoFusionSystems, 2, "automizer candidates for |P| = ", Size( P ), ": ", FS_CandCount( user ),
                   " candidates (", Runtime() - t, " ms)" );
             return user;
