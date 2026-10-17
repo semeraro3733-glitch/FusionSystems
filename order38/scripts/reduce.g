@@ -141,11 +141,12 @@ FS38_GLGroups := [];         # the permutation image of GL(n,3)
 FS38_GLIso := [];            # the isomorphism GL(n,3) -> permutation group
 FS38_GLTables := [];         # the table records with T (perm image) and cands (matrices)
 FS38_GLTableTypes := [];     # the T-types covered by the table of GL(n,3)
-for n in [ 2 .. 5 ] do
+for n in [ 2 .. 6 ] do
     if n <= 4 then
         f := Concatenation( "/home/user/FusionSystems/order38/data/gl", String( n ), "_table.g" );
     else
-        f := "/home/user/FusionSystems/order38/data/gl5_3x3_table.g";
+        # for n = 5, 6 only the type T = 3^2 is tabulated (gl5direct.g, gl6direct.g)
+        f := Concatenation( "/home/user/FusionSystems/order38/data/gl", String( n ), "_3x3_table.g" );
     fi;
     if IsExistingFile( f ) then
         Read( f );
