@@ -28,7 +28,7 @@
 ##  alpha Aut_{F1}(E) alpha^-1 <= Aut_{F2}( alpha(E) ) for all essential E.
 ##
 InstallGlobalFunction( FS_IsContainedIn, function( F1, F2, alpha )
-    local S2, h, A2, i, E, theta, img, hE, AE, a;
+    local S2, h, A2, i, E, theta, img, hR, AR, a, pos, node, R, s;
     S2 := F2!.S;
     h := FS_AutHandle( S2 );
     A2 := FS_ComplementData( F2 ).autF;
@@ -38,11 +38,18 @@ InstallGlobalFunction( FS_IsContainedIn, function( F1, F2, alpha )
     for i in [ 1 .. Length( F1!.ess ) ] do
         E := F1!.ess[i];
         img := ImagesSet( alpha, E );
-        theta := GroupHomomorphismByImagesNC( E, img, FS_PcgsOf( E ), List( FS_PcgsOf( E ), x -> ImagesRepresentative( alpha, x ) ) );
-        hE := FS_AutHandle( img );
-        AE := FS_AutSubgroup( hE, Concatenation( FS_AutSGenerators( F2, img ), FS_AutFGenerators( F2, img ) ) );
+        # work in the representative R of the S-class of img (cached data)
+        pos := FS_NodeOf( F2, img );
+        node := F2!.nodes[ pos[1] ];
+        R := node.rep; s := pos[2];
+        theta := GroupHomomorphismByImagesNC( E, R, FS_PcgsOf( E ), List( FS_PcgsOf( E ), x -> ImagesRepresentative( alpha, x )^s ) );
+        hR := FS_AutHandle( R );
+        if not IsBound( node.autFmodel ) then
+            node.autFmodel := FS_AutSubgroup( hR, Concatenation( FS_AutSGenerators( F2, R ), FS_AutFGeneratorsOfNode( F2, pos[1] ) ) );
+        fi;
+        AR := node.autFmodel;
         for a in F1!.essauts[i] do
-            if not hE.to( FS_TransportAut( a, theta ) ) in AE then return false; fi;
+            if not hR.to( FS_TransportAut( a, theta ) ) in AR then return false; fi;
         od;
     od;
     return true;
@@ -64,6 +71,40 @@ InstallGlobalFunction( FS_TransportFusionSystem, function( F, alpha )
         Add( auts, List( F!.essauts[i], a -> FS_TransportAut( a, theta ) ) );
     od;
     return FusionSystem( S2, List( F!.autSgens, a -> FS_TransportAut( a, alpha ) ), ess, auts );
+end );
+
+#############################################################################
+##
+#F  FS_BClassOrbitStabilizer( <F>, <h>, <H>, <X> )
+##
+##  H a subgroup of the model of Aut(S) normalizing Aut_F(S), X a subgroup
+##  of S.  Computes the orbit of the B-class of X under H (B = Aut_F(S) x| S)
+##  by the orbit-stabilizer algorithm on classes.  Returns a record with
+##  components reps (class representatives, reps[1] = X), invs, trans
+##  (trans[i] an element of H mapping the class of X to the i-th class)
+##  and stab (the stabilizer in H of the class of X).
+##
+InstallGlobalFunction( FS_BClassOrbitStabilizer, function( F, h, H, X )
+    local gens, acts, reps, invs, trans, stabgens, i, j, g, Y, pos, t;
+    gens := GeneratorsOfGroup( H );
+    acts := List( gens, h.from );
+    reps := [ X ]; invs := [ FS_SubgroupInvariants( F!.S, X ) ]; trans := [ One( H ) ];
+    stabgens := [];
+    i := 1;
+    while i <= Length( reps ) do
+        for j in [ 1 .. Length( gens ) ] do
+            Y := ImagesSet( acts[j], reps[i] );
+            pos := FS_BClassPosition( F, reps, invs, Y );
+            if pos = fail then
+                Add( reps, Y ); Add( invs, FS_SubgroupInvariants( F!.S, Y ) ); Add( trans, trans[i] * gens[j] );
+            else
+                t := trans[i] * gens[j] * trans[ pos[1] ]^-1;
+                if not IsOne( t ) then Add( stabgens, t ); fi;
+            fi;
+        od;
+        i := i + 1;
+    od;
+    return rec( reps := reps, invs := invs, trans := trans, stab := SubgroupNC( H, stabgens ) );
 end );
 
 #############################################################################
@@ -110,7 +151,7 @@ InstallGlobalFunction( FS_IsomorphismFusionSystemsSameS, function( F1, F2 )
     end;
     search := function( i, H, n )
         # H <= N: the current group of allowed modifications, n the current element (product so far)
-        local X, T, r, res, stab, cos, c;
+        local X, T, r, res, stab, c, os, idx, pos;
         if i > Length( ess1 ) then
             for c in RightTransversal( H, Intersection( H, A2 ) ) do
                 alpha := h.from( alpha0 * n * c );
@@ -119,14 +160,16 @@ InstallGlobalFunction( FS_IsomorphismFusionSystemsSameS, function( F1, F2 )
             return fail;
         fi;
         X := ImagesSet( h.from( n ), ess1[i] );
+        # the orbit of the B2-class of X under H (H normalizes A2, so it
+        # permutes the B2-classes), with transversal and stabilizer
+        os := FS_BClassOrbitStabilizer( F2, h, H, X );
         for T in targets do
             if Size( T ) <> Size( X ) then continue; fi;
-            r := FS_AutRepresentativeAction( h, H, X, T );
-            if r = fail then continue; fi;
-            stab := FS_AutStabilizer( h, H, T );
-            # the elements of H mapping X to T are r * stab
-            cos := RightTransversal( stab, Intersection( stab, A2 ) );
-            # we must keep the whole coset r*stab as search space, modulo A2
+            pos := FS_BClassPosition( F2, os.reps, os.invs, T );
+            if pos = fail then continue; fi;
+            idx := pos[1];
+            r := os.trans[ idx ];
+            stab := ConjugateSubgroup( os.stab, r );
             res := search( i + 1, stab, n * r );
             if res <> fail then return res; fi;
         od;
