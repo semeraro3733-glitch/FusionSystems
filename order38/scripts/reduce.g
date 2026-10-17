@@ -73,6 +73,18 @@ FS38_CoveringPairs := function( X, chars )
     return pairs;
 end;
 
+# does N/E act faithfully on E/Phi(E)?  (the action factors through N/E as
+# [E,E] <= Phi(E)); checked on the coset representatives of E in N
+FS38_FaithfulOnFrattiniQuotient := function( N, E, Phi )
+    local pcgs, n;
+    pcgs := Pcgs( E );
+    for n in RightTransversal( N, E ) do
+        if n in E then continue; fi;
+        if ForAll( pcgs, x -> x^-1 * x^n in Phi ) then return false; fi;
+    od;
+    return true;
+end;
+
 # the elements of N acting trivially on D'/D for every covering pair
 FS38_StabilityKernel := function( N, pairs )
     local C, pr, q, Q, H;
@@ -348,8 +360,7 @@ FS38_Cheap := function( S )
         if not IsSubset( E, Centralizer( S, E ) ) then FS38_Timers.frattini := FS38_Timers.frattini + Runtime() - t; continue; fi;
         if not elab then
             # the Frattini quotient test before the class test (cheap, selective)
-            C := FS38_StabilityKernel( N, [ [ Phi, E ] ] );
-            if not IsSubset( E, C ) then FS38_Timers.frattini := FS38_Timers.frattini + Runtime() - t; continue; fi;
+            if not FS38_FaithfulOnFrattiniQuotient( N, E, Phi ) then FS38_Timers.frattini := FS38_Timers.frattini + Runtime() - t; continue; fi;
         fi;
         FS38_Timers.frattini := FS38_Timers.frattini + Runtime() - t; t := Runtime();
         # one representative per S-class from here on
