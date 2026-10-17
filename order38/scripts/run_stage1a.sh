@@ -16,9 +16,13 @@ while [ $r -lt $NPROC ]; do
     last=$(tail -n 1 "$out" | cut -d';' -f1)
     start=$((last+NPROC))
   fi
-  if [ $start -le $LAST ]; then
+  pidfile="$DIR/data/stage1a/pid_$r.txt"
+  if [ -s "$pidfile" ] && kill -0 "$(cat "$pidfile")" 2>/dev/null; then
+    echo "process $r: still running (pid $(cat "$pidfile"))"
+  elif [ $start -le $LAST ]; then
     nohup gap -q -b -o 2g -l ";$DIR/../gap" -c "Read(\"$DIR/scripts/reduce.g\"); FS38_Run($start, $NPROC, $LAST, \"$out\", \"$prog\"); QUIT;" \
       > "$DIR/logs/stage1a_$r.log" 2>&1 &
+    echo $! > "$pidfile"
     echo "process $r: ids $start, $((start+NPROC)), ... <= $LAST (pid $!)"
   else
     echo "process $r: done"

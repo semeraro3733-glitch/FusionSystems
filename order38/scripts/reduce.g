@@ -387,6 +387,7 @@ end;
 FS38_Run := function( a, step, b, file, progressfile )
     local id, S, r, t, line, t0, n;
     t0 := Runtime(); n := 0;
+    b := b - ( ( b - a ) mod step );      # GAP ranges need (b - a) divisible by step
     for id in [ a, a + step .. b ] do
         S := SmallGroup( 6561, id );
         t := Runtime();
