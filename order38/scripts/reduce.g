@@ -75,13 +75,16 @@ end;
 
 # the elements of N acting trivially on D'/D for every covering pair
 FS38_StabilityKernel := function( N, pairs )
-    local C, pr, q, Q;
+    local C, pr, q, Q, H;
     C := N;
     for pr in pairs do
-        q := NaturalHomomorphismByNormalSubgroup( C, pr[1] );
+        # the elements of C centralising D'/D (D = pr[1] < D' = pr[2], both
+        # normal in N); computed in <C, D'> since C need not contain D'
+        H := ClosureGroup( C, pr[2] );
+        q := NaturalHomomorphismByNormalSubgroup( H, pr[1] );
         Q := Image( q );
-        C := PreImage( q, Centralizer( Q, Image( q, pr[2] ) ) );
-        if Size( C ) = Size( pr[1] ) then break; fi;
+        C := Intersection( C, PreImage( q, Centralizer( Image( q, C ), Image( q, pr[2] ) ) ) );
+        if Size( C ) = 1 then break; fi;
     od;
     return C;
 end;
@@ -147,6 +150,17 @@ for n in [ 2 .. 5 ] do
         fi;
     fi;
 od;
+
+# Aut_S(E) as a matrix group on the elementary abelian group E
+FS38_AutSMatrices := function( S, E, N )
+    local pcgs, mats, g;
+    pcgs := Pcgs( E );
+    mats := [];
+    for g in GeneratorsOfGroup( N ) do
+        Add( mats, ImmutableMatrix( GF( 3 ), List( pcgs, x -> ExponentsOfPcElement( pcgs, x^g ) ) * One( GF( 3 ) ) ) );
+    od;
+    return Group( mats, IdentityMat( Length( pcgs ), GF( 3 ) ) );
+end;
 
 # The candidate automizers of an elementary abelian subgroup P of S from the
 # tables, as lists of automorphisms of P (conjugated so that Aut_S(P) is
@@ -250,17 +264,6 @@ FS38_FingerprintTest := function( E )
     return fp2 in FS38_FingerprintSets[k];
 end;
 
-# Aut_S(E) as a matrix group on the elementary abelian group E
-FS38_AutSMatrices := function( S, E, N )
-    local pcgs, mats, g;
-    pcgs := Pcgs( E );
-    mats := [];
-    for g in GeneratorsOfGroup( N ) do
-        Add( mats, ImmutableMatrix( GF( 3 ), List( pcgs, x -> ExponentsOfPcElement( pcgs, x^g ) ) * One( GF( 3 ) ) ) );
-    od;
-    return Group( mats, IdentityMat( Length( pcgs ), GF( 3 ) ) );
-end;
-
 # counters: candidates entering each stage
 FS38_Counts := rec( cands := 0, pre := 0, classes := 0, type := 0, fingerprint := 0, frattini := 0, chain := 0, elab := 0, aut := 0, radical := 0, kept := 0 );
 
@@ -343,6 +346,12 @@ FS38_Cheap := function( S )
         Phi := FrattiniSubgroup( E );
         if Index( E, Phi ) < idx^2 then FS38_Timers.frattini := FS38_Timers.frattini + Runtime() - t; continue; fi;
         if not IsSubset( E, Centralizer( S, E ) ) then FS38_Timers.frattini := FS38_Timers.frattini + Runtime() - t; continue; fi;
+        if not elab then
+            # the Frattini quotient test before the class test (cheap, selective)
+            C := FS38_StabilityKernel( N, [ [ Phi, E ] ] );
+            if not IsSubset( E, C ) then FS38_Timers.frattini := FS38_Timers.frattini + Runtime() - t; continue; fi;
+        fi;
+        FS38_Timers.frattini := FS38_Timers.frattini + Runtime() - t; t := Runtime();
         # one representative per S-class from here on
         inv := [ Size( E ), Size( N ), Size( Center( E ) ), Size( Phi ), Size( DerivedSubgroup( E ) ) ];
         if FS_ClassPosition( S, seen, seeninv, E ) <> fail then FS38_Timers.classes := FS38_Timers.classes + Runtime() - t; continue; fi;
@@ -367,12 +376,8 @@ FS38_Cheap := function( S )
                            elab := true, abelian := true, rank := n, chars := [ E ] ) );
             continue;
         fi;
-        FS38_Counts.fingerprint := FS38_Counts.fingerprint + 1;
-        # the Frattini quotient test, then the finer chain of characteristic subgroups
-        C := FS38_StabilityKernel( N, [ [ Phi, E ] ] );
-        FS38_Timers.frattini := FS38_Timers.frattini + Runtime() - t; t := Runtime();
-        if not IsSubset( E, C ) then continue; fi;
         FS38_Counts.frattini := FS38_Counts.frattini + 1;
+        # the finer chain of characteristic subgroups
         charsE := FS38_CharList( E );
         pairs := FS38_CoveringPairs( E, charsE );
         C := FS38_StabilityKernel( N, pairs );
