@@ -64,7 +64,7 @@ current state is summarised in Section~\ref{sec:status}.
   about $3\%$ of random groups survive it.
 \item Stage 1b (automorphism group tests on the survivors): not started.
 \item Look-up tables for $\GL_n(3)$: complete for $n\le 4$ (Section~\ref{sec:lookup}).
-\item Stage 2 (fusion systems group by group): started; Sections~\ref{sec:psl3}--\ref{sec:class6none} done (groups 2221, 2225, 2025, 2029); the groups passing Stage 1b are treated in the order of the largest elementary abelian proto-essential subgroup.
+\item Stage 2 (fusion systems group by group): started; Sections~\ref{sec:psl3}--\ref{sec:class6none} done (the 7 groups whose proto-essential subgroups have order at most $3^3$); the groups passing Stage 1b are treated in the order of the largest elementary abelian proto-essential subgroup.
 \end{itemize}
 
 \section{Conventions and the strategy}\label{sec:strategy}
@@ -392,15 +392,27 @@ $\F$ & $\Out_\F(S)$ & essential subgroups & remarks\\
 \subsection{Groups of class 6 with two generators carrying no fusion system}
 \label{sec:class6none}
 
-The groups \texttt{SmallGroup(6561,2025)} ($|\Z(S)|=9$, class $6$, exponent
-$27$, $|S'|=3^6$, $|\Aut(S)|=2\cdot3^{12}$) and \texttt{SmallGroup(6561,2029)}
-($|\Z(S)|=3$, class $6$, exponent $27$, $|S'|=3^6$, $|\Aut(S)|=2\cdot3^{12}$)
-survive Stages 1a and 1b with a single proto-essential class $E\cong3^3$,
-$|N_S(E):E|=3$, but \texttt{AllFusionSystems} finds no saturated fusion
-system with $O_3(\F)=1$ and $O^3(\F)=\F$ on them: for the Borel subgroup
-$\Aut_\F(S)=\Inn(S)$ the focal subgroup cannot be $S$, and for
-$|\Out_\F(S)|=2$ no choice of automizer gives a saturated system ($26$ and
-$5$ seconds).
+Five $2$-generator groups of class $6$ and exponent $27$ survive Stages 1a
+and 1b with proto-essential subgroups $E\cong 3^3$, $|N_S(E):E|=3$, only,
+but \texttt{AllFusionSystems} finds no saturated fusion system with
+$O_3(\F)=1$ and $O^3(\F)=\F$ on any of them (a few seconds each):
+\begin{center}
+\begin{tabular}{lccccc}
+\toprule
+$S$ & $|\Z(S)|$ & $|S'|$ & $|\Aut(S)|$ & abelian max.\ subgroup & proto-essential classes\\
+\midrule
+\texttt{SmallGroup(6561,2025)} & 9 & $3^6$ & $2\cdot3^{12}$ & no & 1\\
+\texttt{SmallGroup(6561,2029)} & 3 & $3^6$ & $2\cdot3^{12}$ & no & 1\\
+\texttt{SmallGroup(6561,2193)} & 9 & $3^5$ & $4\cdot3^{12}$ & yes & 1\\
+\texttt{SmallGroup(6561,2021)} & 3 & $3^6$ & $2\cdot3^{11}$ & no & 3\\
+\texttt{SmallGroup(6561,2205)} & 3 & $3^5$ & $2\cdot3^{12}$ & no & 3\\
+\bottomrule
+\end{tabular}
+\end{center}
+In each case the Borel subgroup $\Aut_\F(S)=\Inn(S)$ is excluded by the
+focal subgroup and for $|\Out_\F(S)|=2$ no choice of automizers
+($\Out_\F(E)\le\GL_3(3)$ from the table of Section~\ref{sec:lookup}) gives a
+saturated system.
 
 \begin{thebibliography}{9}
 \bibitem{PS} C. Parker, J. Semeraro, \emph{Algorithms for fusion systems with
