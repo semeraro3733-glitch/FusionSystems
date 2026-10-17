@@ -102,7 +102,7 @@ end );
 #F  FS_IsSaturatedWithReason( <F> ) . . . . . . [ true ] or [ false, reason ]
 ##
 InstallGlobalFunction( FS_IsSaturatedWithReason, function( F )
-    local S, p, cpl, nodes, comps, i, j, r, comp, best, P, h, A, T, essnodes, pos, pp;
+    local S, p, cpl, nodes, comps, i, j, r, comp, best, P, h, A, T, essnodes, pos, pp, nSE;
     S := F!.S; p := F!.p;
     cpl := FS_ComplementData( F );
     if not cpl.sylow then
@@ -111,11 +111,14 @@ InstallGlobalFunction( FS_IsSaturatedWithReason, function( F )
     # the essential subgroups must be fully normalized and F-centric
     essnodes := List( F!.ess, E -> FS_NodeOf( F, E )[1] );
     for i in [ 1 .. Length( essnodes ) ] do
-        comp := FS_ComponentOf( F, essnodes[i] );
-        if not ForAll( comp, j -> F!.nodes[j].centric ) then
-            return [ false, Concatenation( "essential subgroup ", String( i ), " is not F-centric" ) ];
-        fi;
-        if ForAny( comp, j -> F!.nodes[j].nS > F!.nodes[ essnodes[i] ].nS ) then
+        nSE := F!.nodes[ essnodes[i] ].nS;
+        # the F-class of E_i is expanded only until a member which is not
+        # S-centric or has a larger normalizer in S turns up
+        comp := FS_ComponentWithStop( F, essnodes[i], node -> not node.centric or node.nS > nSE );
+        if comp = fail then
+            if not F!.nodes[ F!.stopnode ].centric then
+                return [ false, Concatenation( "essential subgroup ", String( i ), " is not F-centric" ) ];
+            fi;
             return [ false, Concatenation( "essential subgroup ", String( i ), " is not fully normalized" ) ];
         fi;
     od;
@@ -123,12 +126,15 @@ InstallGlobalFunction( FS_IsSaturatedWithReason, function( F )
     comps := [];
     for i in nodes do
         r := FS_Find( F, i );
-        if not IsBound( comps[r] ) then comps[r] := FS_ComponentOf( F, i ); fi;
+        if not IsBound( comps[r] ) then
+            # the class matters only if it is F-centric: give up at the
+            # first member which is not S-centric
+            comps[r] := FS_ComponentWithStop( F, i, node -> not node.centric );
+        fi;
     od;
     for r in [ 1 .. Length( comps ) ] do
-        if not IsBound( comps[r] ) then continue; fi;
+        if not IsBound( comps[r] ) or comps[r] = fail then continue; fi;
         comp := comps[r];
-        if not ForAll( comp, j -> F!.nodes[j].centric ) then continue; fi;
         # a fully normalized representative
         best := comp[1];
         for j in comp do if F!.nodes[j].nS > F!.nodes[ best ].nS then best := j; fi; od;

@@ -27,7 +27,10 @@
 ##    nodeinv    the list of invariants of the nodes (for fast lookup),
 ##    essconj    (lazy) essconj[i] = list of rec( grp, auts ) for the
 ##               S-conjugates of E_i with transported automizer generators,
-##    comps      (lazy) cache of computed components.
+##    comps      (lazy) cache of computed components,
+##    stop       fail, or a predicate on node records: the expansion of the
+##               groupoid stops at the first node satisfying it (see
+##               FS_CheckStop); stopped, stopnode record the outcome.
 ##
 ##  Fusion of subgroups.  Let B = Aut_F(S) x| S.  Every isomorphism in F
 ##  between subgroups of S is a composite of restrictions of elements of
@@ -65,7 +68,8 @@ InstallGlobalFunction( FusionSystem, function( S, autSgens, essentials, essautos
         S := S, p := PrimePGroup( S ),
         autSgens := Filtered( autSgens, a -> not IsOne( a ) ),
         ess := ShallowCopy( essentials ), essauts := essautos,
-        nodes := [], nodeinv := [], comps := rec() ) );
+        nodes := [], nodeinv := [], comps := rec(),
+        stop := fail, stopped := false, stopnode := 0 ) );
     return F;
 end );
 
@@ -228,6 +232,45 @@ end );
 
 #############################################################################
 ##
+#F  FS_CheckStop( <F>, <i> ) . . . . . . . . . . . . . . early abort test
+##
+##  F!.stop is fail or a predicate on node records.  While a predicate is
+##  set, the expansion of the groupoid (FS_ComponentOf and the functions it
+##  calls) is abandoned as soon as a node satisfying it is met; the node is
+##  recorded in F!.stopnode and F!.stopped is set.  Arrows added before the
+##  abort are genuine F-isomorphisms and stay; no (node, essential) pair is
+##  marked as processed, so later complete expansions remain correct.  The
+##  saturation test uses this to give up on the F-class of a subgroup as
+##  soon as it contains a member which is not S-centric or which has a
+##  larger normalizer than the subgroup: such a class can be very large
+##  (e.g. subgroups of an abelian essential subgroup with a big automizer)
+##  although its first bad member is found at once.
+##
+BindGlobal( "FS_CheckStop", function( F, i )
+    if F!.stopped then return true; fi;
+    if F!.stop <> fail and F!.stop( F!.nodes[i] ) then
+        F!.stopped := true; F!.stopnode := i;
+    fi;
+    return F!.stopped;
+end );
+
+#############################################################################
+##
+#F  FS_ComponentWithStop( <F>, <i>, <pred> )
+##
+##  The component of node i, or fail as soon as a node satisfying pred is
+##  met (that node is F!.stopnode).
+##
+BindGlobal( "FS_ComponentWithStop", function( F, i, pred )
+    local comp;
+    F!.stop := pred; F!.stopped := false;
+    comp := FS_ComponentOf( F, i );
+    F!.stop := fail; F!.stopped := false;
+    return comp;
+end );
+
+#############################################################################
+##
 #F  FS_AddEdge( <F>, <i>, <a>, <Y> )
 ##
 ##  a an injective homomorphism from nodes[i].rep onto Y; records the arrow
@@ -245,6 +288,7 @@ BindGlobal( "FS_AddEdge", function( F, i, a, Y )
     fi;
     Add( F!.nodes[i].edges, rec( to := pos[1], map := map ) );
     FS_Union( F, i, pos[1] );
+    FS_CheckStop( F, pos[1] );
 end );
 
 #############################################################################
@@ -283,6 +327,8 @@ BindGlobal( "FS_ProcessOrbit", function( F, i, k, m )
                 Add( orbit, Z );
                 Add( pos, FS_NodeOf( F, Z ) );
                 z := Length( orbit );
+                # early abort (nothing has been marked as processed yet)
+                if FS_CheckStop( F, pos[z][1] ) then return; fi;
             fi;
             imgs[y][g] := z;
         od;
@@ -323,6 +369,7 @@ InstallGlobalFunction( FS_ExpandNode, function( F, i )
     if not node.cpldone then
         for c in cpl.gens do
             FS_AddEdge( F, i, c, ImagesSet( c, R ) );
+            if F!.stopped then return; fi;
         od;
         node.cpldone := true;
     fi;
@@ -332,6 +379,7 @@ InstallGlobalFunction( FS_ExpandNode, function( F, i )
             if Size( conj[k][m].grp ) >= Size( R ) and not [ k, m ] in node.done
                and IsSubset( conj[k][m].grp, R ) then
                 FS_ProcessOrbit( F, i, k, m );
+                if F!.stopped then return; fi;
             fi;
         od;
     od;
@@ -345,12 +393,17 @@ end );
 InstallGlobalFunction( FS_ComponentOf, function( F, i )
     local seen, queue, j, e, comp;
     # expand until closure
+    if FS_CheckStop( F, i ) then return fail; fi;
     seen := [ i ]; queue := [ i ];
     while Length( queue ) > 0 do
         j := Remove( queue );
         FS_ExpandNode( F, j );
+        if F!.stopped then return fail; fi;
         for e in F!.nodes[j].edges do
-            if not e.to in seen then AddSet( seen, e.to ); Add( queue, e.to ); fi;
+            if not e.to in seen then
+                if FS_CheckStop( F, e.to ) then return fail; fi;
+                AddSet( seen, e.to ); Add( queue, e.to );
+            fi;
         od;
     od;
     return seen;

@@ -116,7 +116,15 @@ saturated fusion system <M>F_S(B)</M>, and the conditions hold.  It
 therefore suffices to run the test over the <M>F</M>-classes of the
 <M>S</M>-centric subgroups of the essential subgroups.  These are found
 from the subgroup lattices of the groups <M>E_i/Z(E_i)</M>, their
-<M>F</M>-classes and automizers from the lazy graph.  This is how the
+<M>F</M>-classes and automizers from the lazy graph.  A class is only
+expanded as far as it is needed: the test abandons the <M>F</M>-class of
+an essential subgroup, or of an <M>S</M>-centric subgroup of one, at the
+first member which is not <M>S</M>-centric or has a larger normalizer in
+<M>S</M>, as such a member already decides the condition in question.  (For
+a candidate system which is far from saturated such a class may be
+enormous, for instance when a subgroup of an abelian essential subgroup
+with a large automizer lies in it, while its first bad member is found at
+once.)  This is how the
 package avoids the fusion graph of <Cite Key="PS21"/>, whose construction
 (the subgroup lattice of <M>S</M> up to <M>B</M>-conjugacy and the
 <M>Aut_F(E)</M>-orbits of all subgroups of all essential subgroups) is the
