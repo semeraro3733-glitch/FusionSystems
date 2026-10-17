@@ -749,6 +749,59 @@ Section~\ref{sec:lookup}, the others by the perfect subgroup method).
 Hence there is no fusion system ($38$ seconds; the first attempt with the
 subgroup lattice of $\Out(E_2)$ ran for more than $40$ minutes).
 
+\subsection{The Sylow $3$-subgroups of $\Alt(18)$ and of $\PSp_4(9)$}
+\label{sec:known}
+
+These two groups are not identified in the library (no \texttt{IdGroup}
+for order $3^8$) and are treated directly (\texttt{scripts/known\_groups.g},
+\texttt{scripts/reference\_known\_ident.g}).  Both survive Stages 1a and
+1b.  Their proto-essential subgroups (after merging $S$-conjugates) and the
+reference fusion systems computed with \texttt{GroupFusionSystem} are:
+
+\emph{$S=\Syl_3(\Alt(18))\cong(C_3\wr C_3)\times(C_3\wr C_3)$}, $|\Aut(S)|=2^5\cdot3^{12}$,
+$65$ Borel subgroups with $|\Out_\F(S)|\in\{1,2,4,8,16,32\}$.  Proto-essential
+subgroups: two $S$-classes (one $\Aut(S)$-class) of subgroups $E_1\cong3^7$
+of rank $4$, $|\Z(E_1)|=9$, with $|\Out(E_1)|=2^6\cdot3^6$ (soluble, $16$
+automizer candidates); two $S$-classes of subgroups $E_2\cong3^7$ of rank $5$,
+$|\Z(E_2)|=81$, with $|\Out(E_2)|=2^7\cdot3^{13}\cdot13$ (a section $\PSL_3(3)$,
+$83$ candidates, enumerated completely by the method of
+Section~\ref{sec:lookup}); the elementary abelian $E_3\cong3^6$ (the base
+group $3^3\times3^3$ of the two wreath products) with $\Out_S(E_3)\cong3^2$
+in the class of the permutation module of the $\GL_6(3)$ table ($10$
+candidates); and two $S$-classes of non-abelian $E_4\cong3^6$ of rank $4$,
+$|\Z(E_4)|=27$, with $|\Out(E_4)|=2^6\cdot3^8$ ($16$ candidates).  The
+reference systems:
+\begin{center}
+\begin{tabular}{lllll}
+\toprule
+$G$ & $\Out_\F(S)$ & $\Out_\F(E_2)$ ($2$ classes) & $\Out_\F(E_3)$ & $\Out_\F(E_4)$ ($2$ classes)\\
+\midrule
+$\Alt(18)$, $\Alt(19)$ & $(C_4\times C_2){:}C_2$ & $C_2^2\times S_4$ & $2^5{:}S_6$ ($23040$) & $C_2\times\GL_2(3)$\\
+$\Sym(18)$, $\Sym(19)$, $\Alt(20)$, $\Sym(20)$ & $C_2^4{:}C_2$ & $C_2^3\times S_4$ & $2^6{:}S_6$ ($46080$) & $C_2^2\times\GL_2(3)$\\
+\bottomrule
+\end{tabular}
+\end{center}
+($E_1$ is not essential in any of them.)
+
+\emph{$S=\Syl_3(\PSp_4(9))$} (the unipotent radical of a Borel subgroup of
+$\mathrm{Sp}_4(9)$), $|\Aut(S)|=2^7\cdot3^{12}$.  Proto-essential subgroups: one
+non-abelian $E_1\cong3^6$ of rank $4$, $|\Z(E_1)|=9$, $\Out_S(E_1)\cong3^2$,
+with $|\Out(E_1)|=2^8\cdot3^6\cdot5$ and $\Out(E_1)/\mathrm{Rad}\cong
+\Alt(6).2^2$; the elementary abelian $E_2\cong3^6$ (the unipotent radical
+of the Siegel parabolic, $\Out_S(E_2)\cong3^2$) in the class of the
+irreducible module of the $\GL_6(3)$ table ($39$ candidates); and one
+elementary abelian $E_3\cong3^4$ with $\Out_S(E_3)\cong3^2$ ($10$ candidates
+from the $\GL_4(3)$ table).  The reference systems: $\F_S(\PSp_4(9))$ has
+$\Out_\F(S)\cong C_8\times C_4$ and essential subgroups $E_1$, $E_2$ with
+automisers of order $2880$ (the Levi factors $\GL_2(9)/\{\pm1\}$ and
+$(\mathrm{Sp}_2(9)\times\GL_1(9))/\{\pm1\}$); $\F_S(\mathrm{PGSp}_4(9))$ has
+$\Out_\F(S)\cong C_8\times C_8$ and automisers of order $5760$; $E_3$ is
+essential in neither.
+
+\textcolor{red}{[The enumeration of all saturated fusion systems on these two
+groups (with the complete candidate lists above) and their identification
+with the reference systems is running; results to follow.]}
+
 \subsection{Groups carrying no fusion system}
 \label{sec:class6none}
 
