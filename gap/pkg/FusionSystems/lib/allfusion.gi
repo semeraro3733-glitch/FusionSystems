@@ -370,6 +370,7 @@ InstallGlobalFunction( AllFusionSystems, function( arg )
         return [];
     fi;
     copts := rec( exhaustive := opts.exhaustive );
+    if IsBound( opts.protoCandidates ) then copts.candidates := opts.protoCandidates; fi;
     proto := ProtoEssentialSubgroups( S, copts );
     Info( InfoFusionSystems, 1, Length( proto.autreps ), " Aut(S)-classes of proto-essential subgroups of orders ",
           List( proto.autreps, Size ), " (", Runtime() - t0, " ms)" );

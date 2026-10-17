@@ -113,10 +113,10 @@ element of order $p$ of $S/A$.
 \subsection{Necessary conditions}
 
 We use the following necessary conditions on $S$.  Conditions
-(R1)--(R3) do not involve automorphism groups and are applied to all
-$1\,396\,077$ groups (Stage 1a); conditions (R4)--(R6) need $\Aut(S)$ and the
-automorphism groups of the candidates and are applied to the survivors
-(Stage 1b).
+(R1)--(R3) involve only $S$, its candidate subgroups $E$ and (for the few
+candidates passing the structural tests) $\Aut(E)$; they are applied to all
+$1\,396\,077$ groups (Stage 1a).  Conditions (R4)--(R6) need $\Aut(S)$ and
+are applied to the survivors (Stage 1b).
 
 \begin{lemma}[{\cite[Lemma 7.1]{PS}}]\label{lem:R1}
 {\rm (R1)} If $|S:\Z(S)|\le 9$ then $S$ carries no saturated fusion system
@@ -135,7 +135,9 @@ $\F$ on $S$ and $T=\Out_S(E)\cong N_S(E)/E$.  Then
 \item[(c)] $|E/\Phifr(E)|\ge |T|^2$;
 \item[(d)] if $1=D_0<D_1<\dots<D_k=E$ is a chain of characteristic
   subgroups of $E$, then no element of $N_S(E)\setminus E$ centralises every
-  factor $D_{i}/D_{i-1}$.
+  factor $D_{i}/D_{i-1}$;
+\item[(e)] $\Aut(E)$ is not a $3$-group, $\Aut_S(E)\cap O_3(\Aut(E))=\Inn(E)$,
+  and $\Aut(E)$ is insoluble unless $T$ is cyclic.
 \end{enumerate}
 \end{lemma}
 \begin{proof}
@@ -152,18 +154,27 @@ normal subgroup $K$ of $\Aut(E)$, and $K$ is a $3$-group (a $3'$-automorphism
 centralising all factors of a normal series of a $3$-group is trivial).
 Hence $K\Inn(E)/\Inn(E)\le O_3(\Out(E))$ meets $\Out_\F(E)$ in a normal
 $3$-subgroup, which is trivial, so $K\cap\Aut_S(E)\le\Inn(E)$, which is
-(d) as $E$ is $S$-centric.
+(d) as $E$ is $S$-centric.  (e) is the $\F$-radical condition
+$O_3(\Out_\F(E))=1$ together with the fact that $T\ne1$ is not normal in
+$\Out_\F(E)$ (a group with a strongly $3$-embedded subgroup has more than
+one Sylow $3$-subgroup), so that $\Out(E)$ is not a $3$-group; if $T$ is not
+cyclic then $O^{3'}(\Out_\F(E)/O_{3'}(\Out_\F(E)))$ is a non-abelian simple
+group by the classification quoted in (b), so $\Aut(E)$ is insoluble.
 \end{proof}
 
 In Stage 1a a subgroup $E$ is called a \emph{candidate} if it is
 $S$-conjugate to a subgroup $C_S(xA/A)$ of Theorem~\ref{thm:gautam} and
-satisfies (a)--(d) of Lemma~\ref{lem:R2}, where in (d) we use the chain
+satisfies (a)--(e) of Lemma~\ref{lem:R2}, where in (d) we use the chain
 $E>\Phifr(E)>1$ and then the covering pairs of the set of characteristic
 subgroups generated (by one round of intersections and products) by
 $\Z(E)$, $\Z_2(E)$, $\Phifr(E)$, $E'$, $\gamma_3(E)$, $\mho_1(E)$,
 $\Omega_1(\Z(E))$, $\Z(\Phifr(E))$ and $C_E(E')$.  (The stability group of
 the set of covering pairs is contained in the stability group of any
-maximal chain in the set, so the argument of (d) applies.)
+maximal chain in the set, so the argument of (d) applies.)  The tests are
+applied in this order, so that $\Aut(E)$ (computed with the GAP package
+\texttt{autpgrp}) is only needed for the candidates surviving (a)--(d);
+the first part of (e) already discards almost all of them, since almost
+all groups of order $3^7$ have a $3$-group of automorphisms.
 
 \begin{lemma}\label{lem:R3}
 {\rm (R3)} If $W\ne 1$ is a characteristic subgroup of $S$ which is contained
@@ -181,10 +192,10 @@ membership in the sets of visibly characteristic subgroups described above.
 
 \begin{lemma}\label{lem:R456}
 Let $\mathcal{E}$ be a set of representatives of the $S$-classes of the
-proto-essential subgroups of $S$ (the candidates which in addition satisfy
-$\Aut_S(E)\cap O_3(\Aut(E))=\Inn(E)$ and, when $\Out_S(E)$ is not cyclic,
-$\Aut(E)$ not soluble; both conditions are $\Aut(S)$-invariant and a
-candidate whose $\Aut(S)$-orbit leaves the set of candidates is discarded).
+proto-essential subgroups of $S$: the candidates of Stage 1a, where a
+candidate whose $\Aut(S)$-orbit contains a subgroup which is not a
+candidate is discarded (all the conditions of Lemma~\ref{lem:R2} are
+$\Aut(S)$-invariant).
 \begin{enumerate}
 \item[(R4)] If $\mathcal{E}=\emptyset$ then $O_3(\F)=S$ for every saturated
   $\F$ on $S$.

@@ -35,22 +35,34 @@ end );
 ##  The subgroups C_S(xA/A) where A runs through the terms of
 ##  RefinedLowerCentralSeries(S) contained in [S,S] (including A = 1) and
 ##  xA through representatives of the conjugacy classes of elements of
-##  order p of S/A.  By [Gautam, Theorem 3.6] every essential subgroup of a
-##  saturated fusion system on S is S-conjugate to one of these.
+##  order p of S/A, without repetitions and without S itself.  By [Gautam,
+##  Theorem 3.6] every essential subgroup of a saturated fusion system on S
+##  is S-conjugate to one of these.
 ##
 InstallGlobalFunction( CentralSeriesCentralizers, function( S )
-    local p, L, k, cands, i, q, Q, c;
+    local p, L, k, cands, i, q, Q, c, C, seenQ, x;
     p := PrimePGroup( S );
     L := RefinedLowerCentralSeries( S );
     k := Position( L, DerivedSubgroup( S ) );
     cands := [];
-    for i in [ k .. Length( L ) ] do
-        q := NaturalHomomorphismByNormalSubgroup( S, L[i] );
-        Q := Image( q );
+    # A = L[k] = S' only gives C_S(xA/A) = S; for the other terms the
+    # centralizers are taken from the conjugacy classes of S/A (where the
+    # class computation stores them) and duplicates are removed inside S/A
+    for i in [ k + 1 .. Length( L ) ] do
+        if Size( L[i] ) = 1 then
+            Q := S; q := fail;
+        else
+            q := NaturalHomomorphismByNormalSubgroup( S, L[i] );
+            Q := Image( q );
+        fi;
+        seenQ := [];
         for c in ConjugacyClasses( Q ) do
-            if Order( Representative( c ) ) = p then
-                Add( cands, PreImage( q, Centralizer( Q, Representative( c ) ) ) );
-            fi;
+            x := Representative( c );
+            if Order( x ) <> p then continue; fi;
+            C := Centralizer( c );
+            if Size( C ) = Size( Q ) or C in seenQ then continue; fi;
+            Add( seenQ, C );
+            if q = fail then Add( cands, C ); else Add( cands, PreImage( q, C ) ); fi;
         od;
     od;
     return cands;
@@ -133,7 +145,9 @@ end );
 ##  O_p(Aut(P)) = Inn(P), and Aut(P) insoluble unless Out_S(P) is cyclic or
 ##  quaternion).  By default the candidates are the subgroups of
 ##  CentralSeriesCentralizers(S) (Gautam, Theorem 3.6); with the option
-##  exhaustive := true all S-centric subgroups are examined.
+##  exhaustive := true all S-centric subgroups are examined, and with the
+##  option candidates := list the given S-class representatives (which must
+##  already pass the cheap tests) are used instead.
 ##
 ##  Every test is invariant under Aut(S), so the tests needing Aut(P) are
 ##  only applied once per Aut(S)-orbit of S-classes, and orbits which are
@@ -151,28 +165,34 @@ InstallGlobalFunction( ProtoEssentialSubgroups, function( arg )
     local S, opts, p, exhaustive, cands, seen, seeninv, X, inv, x, pos, autgens, orb,
           autreps, sreps, label, path, k, i, keep, t, h, result, cheap;
     S := arg[1];
-    opts := rec( exhaustive := false, autgens := fail );
+    opts := rec( exhaustive := false, autgens := fail, candidates := fail );
     if Length( arg ) > 1 then
         for x in RecNames( arg[2] ) do opts.( x ) := arg[2].( x ); od;
     fi;
     p := PrimePGroup( S );
     t := Runtime();
-    if opts.exhaustive then
-        cands := FS_CentricSubgroupClasses( S );
+    if opts.candidates <> fail then
+        # S-class representatives which already passed the cheap tests
+        X := ShallowCopy( opts.candidates );
+        inv := List( X, x -> FS_SubgroupInvariants( S, x ) );
     else
-        cands := CentralSeriesCentralizers( S );
-    fi;
-    Info( InfoFusionSystems, 2, Length( cands ), " candidate subgroups (", Runtime() - t, " ms)" );
-    # S-classes of S-centric candidates passing the cheap tests
-    seen := []; seeninv := []; X := []; inv := [];
-    for x in cands do
-        if x = S or IsCyclic( x ) or not FS_IsCentricIn( S, x ) then continue; fi;
-        if FS_ClassPosition( S, seen, seeninv, x ) <> fail then continue; fi;
-        Add( seen, x ); Add( seeninv, FS_SubgroupInvariants( S, x ) );
-        if FS_CheapProtoEssentialTest( S, x ) then
-            Add( X, x ); Add( inv, seeninv[ Length( seeninv ) ] );
+        if opts.exhaustive then
+            cands := FS_CentricSubgroupClasses( S );
+        else
+            cands := CentralSeriesCentralizers( S );
         fi;
-    od;
+        Info( InfoFusionSystems, 2, Length( cands ), " candidate subgroups (", Runtime() - t, " ms)" );
+        # S-classes of S-centric candidates passing the cheap tests
+        seen := []; seeninv := []; X := []; inv := [];
+        for x in cands do
+            if x = S or IsCyclic( x ) or Normalizer( S, x ) = x or not FS_IsCentricIn( S, x ) then continue; fi;
+            if FS_ClassPosition( S, seen, seeninv, x ) <> fail then continue; fi;
+            Add( seen, x ); Add( seeninv, FS_SubgroupInvariants( S, x ) );
+            if FS_CheapProtoEssentialTest( S, x ) then
+                Add( X, x ); Add( inv, seeninv[ Length( seeninv ) ] );
+            fi;
+        od;
+    fi;
     Info( InfoFusionSystems, 2, Length( seen ), " S-classes of S-centric candidates, ",
           Length( X ), " pass the tests not requiring Aut(P) (", Runtime() - t, " ms)" );
     if opts.autgens <> fail then
