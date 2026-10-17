@@ -315,6 +315,21 @@ $\Syl_3(\PSL_3(163))$ & 3 & 7 & 2 & 81 & 729 & 737\\
 \bottomrule
 \end{tabular}
 \end{center}
+All three survive Stages 1a and 1b (the library numbers of the first two
+are not known, as \texttt{IdGroup} is not available for order $3^8$; they
+are treated directly).  The proto-essential candidates are: for
+$\Syl_3(\Alt(18))$ two $S$-classes of non-abelian subgroups of order
+$3^7$ (ranks $4$ and $5$, $|N_S(E):E|=3$), one elementary abelian
+$3^6$ with $\Out_S(E)\cong3^2$ and two $S$-classes of non-abelian
+subgroups of order $3^6$ with $|N_S(E):E|=3$, $|\Aut(S)|=2^5\cdot3^{11}$;
+for $\Syl_3(\PSp_4(9))$ one elementary abelian $3^6$ and one non-abelian
+subgroup of order $3^6$, both with $\Out_S(E)\cong3^2$, and seven
+$S$-classes of elementary abelian $3^4$ with $\Out_S(E)\cong3^2$,
+$|\Aut(S)|=2^7\cdot3^{12}$.  The elementary abelian $3^6$ with
+$\Out_S(E)\cong3^2$ requires the automizer candidates in $\GL_6(3)$, for
+which no look-up table exists yet (the perfect subgroup method of the
+package is complete here since $\Out_S(E)$ is not cyclic); these two
+groups are treated at the end of Stage 2.
 
 \section{Look-up tables: subgroups of $\GL_n(3)$ with a strongly $3$-embedded subgroup}\label{sec:lookup}
 
@@ -369,12 +384,28 @@ abelian of rank at most $4$ (the tables above); $E$ elementary abelian of
 rank $5$ with $\Out_S(E)\cong3^2$ (the table above); and every $E$ with
 $\Out_S(E)$ neither cyclic nor quaternion (then $\Out_\F(E)$ is not
 $3$-soluble and the perfect subgroup method of the package is complete).
-In the remaining case, an elementary abelian $E$ of rank $5$, $6$ or $7$
-with $\Out_S(E)$ cyclic and $|\Out(E)|=|\GL_n(3)|$ beyond the lattice bound,
-the non-$3$-soluble candidates are complete but the $3$-soluble ones
-($H=O_{3'}(H)\rtimes N_H(T)$ with $T$ acting faithfully on the $3'$-group
-$O_{3'}(H)\le\GL_n(3)$) are only found inside the monomial groups of the
-$T$-invariant frames.  Results for groups whose only proto-essential
+For cyclic $\Out_S(E)=T$ and $\Out(E)$ beyond the lattice bound the
+$3$-soluble candidates are now enumerated completely as well
+(\texttt{FS\_PSolubleCyclicCandidates}): such a candidate $H$ has
+$Q=O_{3'}(H)\ne1$ with $T$ acting faithfully on $Q$, and $H/Q$ has a
+normal Sylow $3$-subgroup, so $H=QT'R$ with $T'$ a conjugate of $T$
+normalising $Q$ and $R$ a $3'$-subgroup of $N(QT')$.  The $3'$-subgroups
+$Q$ of $G=\Out(E)$ are found through the soluble radical (the $3'$-subgroups
+of $G/\mathrm{Rad}(G)$ from its subgroup lattice, then the Hall
+$3'$-subgroups of their soluble preimages, which contain every $3'$-subgroup),
+the conjugates $T'$ from the conjugacy classes of $N_G(Q)$ when this group
+is small and as the fixed points of $T$ on the cosets of $N_G(Q)$
+otherwise.  The method applies whenever $G/\mathrm{Rad}(G)$ has a feasible
+subgroup lattice, which is always the case for the non-abelian
+proto-essential subgroups met so far (where $G/\mathrm{Rad}(G)$ is a
+subgroup of $\GL_d(3)$, $d\le5$, such as $\PSL_3(3)$); a soluble $\Out(E)$
+with non-cyclic $\Out_S(E)$ has no candidates at all.  The only remaining
+incomplete case is an elementary abelian $E$ of rank $5$, $6$ or $7$ with
+$\Out_S(E)$ cyclic and $\Out(E)=\GL_n(3)$ (where $G/\mathrm{Rad}(G)$ is
+$\PGL_n(3)$ itself), where the $3$-soluble candidates are only found
+inside the monomial groups of the $T$-invariant frames; the package
+records every incomplete enumeration in \texttt{FS\_Diagnostics}, and the
+Stage 2 logs and tables mark the affected groups.  Results for groups whose only proto-essential
 subgroups of this kind are elementary abelian of rank at least $5$ with
 cyclic $\Out_S(E)$ are therefore marked ``complete up to the soluble
 candidates'' below; such groups are, by the ordering of Stage 2, treated
@@ -541,6 +572,22 @@ $\F$ & $\Out_\F(S)$ & essential subgroups & remarks\\
 \end{tabular}
 \end{center}
 ($7$ seconds.)
+
+\subsection{\texttt{SmallGroup(6561,3016)}: two maximal subgroups as candidates, no fusion system}
+\label{sec:3016}
+
+$S=\texttt{SmallGroup(6561,3016)}$ has $|\Z(S)|=27$, class $3$, three
+generators, exponent $9$ and $|\Aut(S)|=2^3\cdot3^{15}$.  Its only
+proto-essential candidates are two maximal subgroups $E_1$, $E_2$ (of
+ranks $4$ and $5$) with $\Out_S(E_i)\cong C_3$, and
+$|\Out(E_1)|=2^6\cdot3^{15}\cdot13$ (with a section $\PSL_3(3)$),
+$|\Out(E_2)|=2^6\cdot3^{12}$ (soluble).  Neither has an automizer
+candidate: there is no subgroup of $\Out(E_i)$ with $\Out_S(E_i)$ as a
+Sylow $3$-subgroup and a strongly $3$-embedded subgroup (the
+$3$-soluble candidates are enumerated completely by the method of
+Section~\ref{sec:lookup}, the others by the perfect subgroup method).
+Hence there is no fusion system ($38$ seconds; the first attempt with the
+subgroup lattice of $\Out(E_2)$ ran for more than $40$ minutes).
 
 \subsection{Groups of class 6 with two generators carrying no fusion system}
 \label{sec:class6none}
