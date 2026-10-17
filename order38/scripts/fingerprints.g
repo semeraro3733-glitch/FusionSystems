@@ -6,13 +6,35 @@
 LoadPackage( "FusionSystems", false );
 Read( "/home/user/FusionSystems/order38/data/aut3table.g" );
 
+# For a group E of class 2 with |E/Z(E)| <= 3^4: the distribution of the
+# sizes of the conjugacy classes, |x^E| = |[x,E]| with [x,E] spanned by the
+# commutators of x with the generators of E (fail for other groups).
+FS38_Breadth := function( E )
+    local Z, q, Q, gens, pcZ, res, y, x, vecs;
+    if NilpotencyClassOfGroup( E ) <> 2 then return fail; fi;
+    Z := Center( E );
+    if Index( E, Z ) > 81 then return fail; fi;
+    q := NaturalHomomorphismByNormalSubgroup( E, Z ); Q := Image( q );
+    gens := GeneratorsOfGroup( E );
+    pcZ := Pcgs( DerivedSubgroup( E ) );
+    res := [];
+    for y in Q do
+        if IsOne( y ) then continue; fi;
+        x := PreImagesRepresentative( q, y );
+        vecs := List( gens, g -> ExponentsOfPcElement( pcZ, Comm( x, g ) ) ) * One( GF( 3 ) );
+        Add( res, RankMat( vecs ) );
+    od;
+    return Collected( res );
+end;
+
 FS38_Fingerprint := function( E )
     local Z;
     Z := Center( E );
     return [ Size( E ), Size( Z ), Size( FrattiniSubgroup( E ) ), Size( DerivedSubgroup( E ) ), Exponent( E ),
              NilpotencyClassOfGroup( E ), AbelianInvariants( E ), List( LowerCentralSeriesOfGroup( E ), Size ),
              List( UpperCentralSeriesOfGroup( E ), Size ), Size( Agemo( E, 3 ) ), Size( Omega( Z, 3 ) ),
-             Collected( List( ConjugacyClasses( E ), c -> [ Order( Representative( c ) ), Size( c ) ] ) ) ];
+             Collected( List( ConjugacyClasses( E ), c -> [ Order( Representative( c ) ), Size( c ) ] ) ),
+             FS38_Breadth( E ) ];
 end;
 
 FS38_MakeFingerprintTable := function( file )

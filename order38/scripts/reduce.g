@@ -142,10 +142,12 @@ if IsExistingFile( "/home/user/FusionSystems/order38/data/fingerprints.g" ) then
     FS38_FingerprintSets := List( [ 1 .. 7 ], k -> fail );
     FS38_FingerprintSets1 := List( [ 1 .. 7 ], k -> fail );
     FS38_FingerprintSets2 := List( [ 1 .. 7 ], k -> fail );
+    FS38_FingerprintSetsB := List( [ 1 .. 7 ], k -> fail );
     for n in [ 3 .. 7 ] do
-        FS38_FingerprintSets[n] := Set( List( FINGERPRINTS[n], x -> x[1] ) );
+        FS38_FingerprintSets[n] := Set( List( FINGERPRINTS[n], x -> x[1]{[ 1 .. 12 ]} ) );
         FS38_FingerprintSets1[n] := Set( List( FINGERPRINTS[n], x -> x[1]{[ 1, 2, 3, 4, 6 ]} ) );
         FS38_FingerprintSets2[n] := Set( List( FINGERPRINTS[n], x -> x[1]{[ 1 .. 11 ]} ) );
+        FS38_FingerprintSetsB[n] := Set( List( FINGERPRINTS[n], x -> Concatenation( x[1]{[ 1 .. 11 ]}, [ x[1][13] ] ) ) );
     od;
 else
     FS38_FingerprintSets := fail;
@@ -160,21 +162,46 @@ FS38_Fingerprint2 := function( E, fp1 )
     return [ fp1[1], fp1[2], fp1[3], fp1[4], Exponent( E ), fp1[5], AbelianInvariants( E ), List( LowerCentralSeriesOfGroup( E ), Size ),
              List( UpperCentralSeriesOfGroup( E ), Size ), Size( Agemo( E, 3 ) ), Size( Omega( Center( E ), 3 ) ) ];
 end;
+# For a group E of class 2 with |E/Z(E)| <= 3^4: the distribution of the
+# ranks of the commutator maps y -> [x,y], i.e. of the class sizes (fail
+# for other groups); much cheaper than the conjugacy classes
+FS38_Breadth := function( E )
+    local Z, q, Q, gens, pcZ, res, y, x, vecs;
+    if NilpotencyClassOfGroup( E ) <> 2 then return fail; fi;
+    Z := Center( E );
+    if Index( E, Z ) > 81 then return fail; fi;
+    q := NaturalHomomorphismByNormalSubgroup( E, Z ); Q := Image( q );
+    gens := GeneratorsOfGroup( E );
+    pcZ := Pcgs( DerivedSubgroup( E ) );
+    res := [];
+    for y in Q do
+        if IsOne( y ) then continue; fi;
+        x := PreImagesRepresentative( q, y );
+        vecs := List( gens, g -> ExponentsOfPcElement( pcZ, Comm( x, g ) ) ) * One( GF( 3 ) );
+        Add( res, RankMat( vecs ) );
+    od;
+    return Collected( res );
+end;
 FS38_Fingerprint := function( E )
     local fp;
     fp := FS38_Fingerprint2( E, FS38_Fingerprint1( E ) );
     Add( fp, Collected( List( ConjugacyClasses( E ), c -> [ Order( Representative( c ) ), Size( c ) ] ) ) );
+    Add( fp, FS38_Breadth( E ) );
     return fp;
 end;
 # the (order-independent) test: does E have the fingerprint of a group with Aut(E) not a 3-group?
 FS38_FingerprintTest := function( E )
-    local k, fp1, fp2;
+    local k, fp1, fp2, br;
     k := LogInt( Size( E ), 3 );
     if FS38_FingerprintSets = fail or k < 3 then return true; fi;
     fp1 := FS38_Fingerprint1( E );
     if not fp1 in FS38_FingerprintSets1[k] then return false; fi;
     fp2 := FS38_Fingerprint2( E, fp1 );
     if not fp2 in FS38_FingerprintSets2[k] then return false; fi;
+    if fp1[5] = 2 and Size( E ) / fp1[2] <= 81 then
+        br := FS38_Breadth( E );
+        if not Concatenation( fp2, [ br ] ) in FS38_FingerprintSetsB[k] then return false; fi;
+    fi;
     Add( fp2, Collected( List( ConjugacyClasses( E ), c -> [ Order( Representative( c ) ), Size( c ) ] ) ) );
     return fp2 in FS38_FingerprintSets[k];
 end;
@@ -227,11 +254,8 @@ FS38_Candidates := function( S )
             if Size( C ) = Size( Q ) then continue; fi;
             if C in seenQ then continue; fi;
             Add( seenQ, C );
-            if q = fail then
-                Add( cands, C );
-            else
-                Add( cands, PreImage( q, C ) );
-            fi;
+            if q <> fail then C := PreImage( q, C ); fi;
+            if not C in cands then Add( cands, C ); fi;
         od;
     od;
     return cands;
