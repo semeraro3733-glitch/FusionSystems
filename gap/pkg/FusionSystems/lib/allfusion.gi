@@ -138,7 +138,7 @@ end );
 #F  FS_FusionSystemsForBorel( <S>, <borel>, <proto>, <classcands>, <opts> )
 ##
 InstallGlobalFunction( FS_FusionSystemsForBorel, function( S, borel, proto, classcands, opts )
-    local p, F0, hS, cplElts, Pess, Pinv, Plabel, Ptheta, i, j, k, pos, P, cand, candsrc, candmax, changed, maxenough, N, hP, hQ, theta,
+    local p, F0, hS, cplElts, Pess, Pinv, Plabel, Ptheta, i, j, k, pos, P, cand, candsrc, candmax, order, changed, maxenough, N, hP, hQ, theta,
           A0, Nrm, nrmauts, perms, perm, a, img, Pi, subsets, D, results, Ess, lists, stabgens, alpha, sig, act,
           tuples, nt, idx, t, orbrep, uf, find, union, tup, imgtup, c, s, Aimg, F, essauts, r, kept, iso, t0, total, nsat,
           prod, ok, SdS;
@@ -191,10 +191,22 @@ InstallGlobalFunction( FS_FusionSystemsForBorel, function( S, borel, proto, clas
     # Borel compatible candidates, iterated until stable (the set of live
     # proto-essentials determines the "maxenough" condition)
     changed := true;
+    # the proto-essentials in increasing order of the number of candidates
+    order := ShallowCopy( [ 1 .. Length( Pess ) ] );
+    SortBy( order, j -> FS_CandCount( candsrc[j] ) );
     while changed do
         changed := false;
-        for j in [ 1 .. Length( Pess ) ] do
+        for j in order do
             if cand[j] <> fail and Length( cand[j] ) = 0 then continue; fi;
+            # with O_p(F) = 1 a proto-essential which is normal in B cannot be
+            # the only essential subgroup
+            if opts.OpTriv and cand[j] = fail and IsNormal( S, Pess[j] )
+               and ForAll( cplElts, c -> ImagesSet( c, Pess[j] ) = Pess[j] )
+               and ForAll( [ 1 .. Length( Pess ) ], k -> k = j or ( cand[k] <> fail and Length( cand[k] ) = 0 ) ) then
+                cand[j] := []; candmax[j] := fail;
+                Info( InfoFusionSystems, 2, "  proto-essential of order ", Size( Pess[j] ), " skipped (normal, O_p(F) = 1)" );
+                continue;
+            fi;
             N := Normalizer( S, Pess[j] );
             maxenough := true;
             for k in [ 1 .. Length( Pess ) ] do
