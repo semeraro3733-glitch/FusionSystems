@@ -279,7 +279,10 @@ BindGlobal( "FS_CandidatesInGroup", function( G, p, T, elab, opts )
         # every subgroup is p-soluble, and a p-soluble group with a strongly
         # p-embedded subgroup has cyclic or quaternion Sylow p-subgroups
         if not cyc then return []; fi;
-        if IsCyclic( T ) and Size( G ) > FS_Options.solvableLatticeBound then
+        # for cyclic T the direct enumeration is complete and much cheaper
+        # than the subgroup lattice (whose size is governed by the p-part of
+        # G, while the enumeration only depends on the p'-structure)
+        if IsCyclic( T ) then
             psol := FS_PSolubleCyclicCandidates( G, p, T );
             if psol <> fail then
                 Info( InfoFusionSystems, 2, "|G| = ", Size( G ), " soluble: ", Length( psol ), " automizer candidates (complete)" );
