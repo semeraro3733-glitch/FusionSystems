@@ -15,12 +15,20 @@
 ##        Syl_3(U3(9))), |E/Phi(E)| >= |Out_S(E)|^2, and (F-radical) no
 ##        element of N_S(E) \ E acts trivially on all factors of a chain of
 ##        characteristic subgroups of E (the stability group of such a chain
-##        is a normal 3-subgroup of Aut(E), which meets Out_F(E) trivially).
+##        is a normal 3-subgroup of Aut(E), which meets Out_F(E) trivially),
+##        and Aut(E) is not a 3-group (looked up by IdGroup(E) in a table of
+##        the automorphism group orders of all groups of order <= 3^7).
 ##   (R3) no nontrivial subgroup W of S which is "visibly characteristic" in S
 ##        and in every candidate E (so W is normal in F, W <= O_3(F)).
 ##
 LoadPackage( "FusionSystems", false );
 LoadPackage( "sglppow", false );
+# the table of automorphism group orders of the groups of order <= 3^7 (aut3table.g)
+if IsExistingFile( "/home/user/FusionSystems/order38/data/aut3table.g" ) then
+    Read( "/home/user/FusionSystems/order38/data/aut3table.g" );
+else
+    FS38_AutIs3Group := E -> false;
+fi;
 
 # characteristic subgroups of a p-group X built from standard ones, closed
 # once under intersections and products
@@ -171,6 +179,8 @@ FS38_Cheap := function( S )
         pairs := FS38_CoveringPairs( E, charsE );
         C := FS38_StabilityKernel( N, pairs );
         if not IsSubset( E, C ) then continue; fi;
+        # (R2e) an essential subgroup has a 3'-automorphism (Out_S(E) is not normal in Out_F(E))
+        if Size( E ) <= 3^7 and FS38_AutIs3Group( E ) then continue; fi;
         Add( res, rec( E := E, order := Size( E ), index := Size( Q ), type := type,
                        elab := IsElementaryAbelian( E ), abelian := IsAbelian( E ), rank := RankPGroup( E ), chars := charsE ) );
     od;
