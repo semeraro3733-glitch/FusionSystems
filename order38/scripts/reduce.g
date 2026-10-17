@@ -124,15 +124,59 @@ end;
 FS38_GLAdmissible := [];     # admissible T as subgroups of the permutation image
 FS38_GLGroups := [];         # the permutation image of GL(n,3)
 FS38_GLIso := [];            # the isomorphism GL(n,3) -> permutation group
-for n in [ 2 .. 4 ] do
-    if IsExistingFile( Concatenation( "/home/user/FusionSystems/order38/data/gl", String( n ), "_table.g" ) ) then
-        Read( Concatenation( "/home/user/FusionSystems/order38/data/gl", String( n ), "_table.g" ) );
+FS38_GLTables := [];         # the table records with T (perm image) and cands (matrices)
+FS38_GLTableTypes := [];     # the T-types covered by the table of GL(n,3)
+for n in [ 2 .. 5 ] do
+    if n <= 4 then
+        f := Concatenation( "/home/user/FusionSystems/order38/data/gl", String( n ), "_table.g" );
+    else
+        f := "/home/user/FusionSystems/order38/data/gl5_3x3_table.g";
+    fi;
+    if IsExistingFile( f ) then
+        Read( f );
         FS38_GLIso[n] := IsomorphismPermGroup( GL( n, 3 ) );
         FS38_GLGroups[n] := Image( FS38_GLIso[n] );
-        FS38_GLAdmissible[n] := List( Filtered( ValueGlobal( Concatenation( "GLTABLE_", String( n ) ) ), r -> Length( r.cands ) > 0 ),
-                                      r -> Image( FS38_GLIso[n], Group( List( r.Tmats, m -> ImmutableMatrix( GF( 3 ), m * One( GF( 3 ) ) ) ) ) ) );
+        FS38_GLTables[n] := List( ValueGlobal( Concatenation( "GLTABLE_", String( n ) ) ), r -> rec( Ttype := r.Ttype,
+            T := Image( FS38_GLIso[n], Group( List( r.Tmats, m -> ImmutableMatrix( GF( 3 ), m * One( GF( 3 ) ) ) ) ) ),
+            cands := List( r.cands, c -> List( c.gens, m -> ImmutableMatrix( GF( 3 ), m * One( GF( 3 ) ) ) ) ) ) );
+        FS38_GLAdmissible[n] := List( Filtered( FS38_GLTables[n], r -> Length( r.cands ) > 0 ), r -> r.T );
+        if n <= 4 then
+            FS38_GLTableTypes[n] := fail;        # complete for all admissible types
+        else
+            FS38_GLTableTypes[n] := Set( List( FS38_GLTables[n], r -> r.Ttype ) );
+        fi;
     fi;
 od;
+
+# The candidate automizers of an elementary abelian subgroup P of S from the
+# tables, as lists of automorphisms of P (conjugated so that Aut_S(P) is
+# their Sylow 3-subgroup); fail if the tables do not cover (rank, type).
+FS38_TableCandidates := function( S, P )
+    local n, N, Tmat, Tp, r, g, gmat, pcgs, res, H, mats, type;
+    if not IsElementaryAbelian( P ) then return fail; fi;
+    n := RankPGroup( P );
+    if not IsBound( FS38_GLTables[n] ) then return fail; fi;
+    N := Normalizer( S, P );
+    type := FS38_SylowType( N / P );
+    if type = fail then return []; fi;
+    if FS38_GLTableTypes[n] <> fail and not type in FS38_GLTableTypes[n] then return fail; fi;
+    Tmat := FS38_AutSMatrices( S, P, N );
+    Tp := Image( FS38_GLIso[n], Tmat );
+    for r in FS38_GLTables[n] do
+        if Size( r.T ) <> Size( Tp ) then continue; fi;
+        g := RepresentativeAction( FS38_GLGroups[n], r.T, Tp );
+        if g = fail then continue; fi;
+        gmat := PreImagesRepresentative( FS38_GLIso[n], g );
+        pcgs := Pcgs( P );
+        res := [];
+        for H in r.cands do
+            mats := List( H, m -> gmat^-1 * m * gmat );
+            Add( res, List( mats, m -> GroupHomomorphismByImagesNC( P, P, pcgs, List( [ 1 .. n ], i -> PcElementByExponentsNC( pcgs, List( m[i], IntFFE ) ) ) ) ) );
+        od;
+        return res;
+    od;
+    return [];      # T is not conjugate to an admissible class
+end;
 
 # the fingerprints of the groups of order 3^3..3^7 whose automorphism group
 # is not a 3-group (fingerprints.g); a candidate of such an order which is
@@ -308,7 +352,7 @@ FS38_Cheap := function( S )
             # Aut(E) = GL_n(3) is known; the table test for n <= 4
             FS38_Counts.elab := FS38_Counts.elab + 1;
             n := RankPGroup( E );
-            if IsBound( FS38_GLAdmissible[n] ) then
+            if IsBound( FS38_GLAdmissible[n] ) and ( FS38_GLTableTypes[n] = fail or type in FS38_GLTableTypes[n] ) then
                 T := Image( FS38_GLIso[n], FS38_AutSMatrices( S, E, N ) );
                 if not ForAny( FS38_GLAdmissible[n], T0 -> Size( T0 ) = Size( T ) and IsConjugate( FS38_GLGroups[n], T0, T ) ) then
                     FS38_Timers.frattini := FS38_Timers.frattini + Runtime() - t; continue;

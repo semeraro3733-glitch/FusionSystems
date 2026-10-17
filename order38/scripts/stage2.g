@@ -67,6 +67,8 @@ FS38_Stage2 := function( S, name, logfile, opts )
         fi;
         opts := ShallowCopy( opts );
         opts.protoCandidates := List( cheap.cands, c -> c.E );
+        # complete automizer candidates from the GL_n(3) tables where available
+        if not IsBound( opts.candidates ) then opts.candidates := FS38_TableCandidates; fi;
         AppendTo( out, "# ", Length( cheap.cands ), " candidate essential subgroups from Stage 1a, orders ", List( cheap.cands, c -> c.order ), "\n" );
     fi;
     L := AllFusionSystems( S, opts );

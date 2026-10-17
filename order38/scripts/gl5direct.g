@@ -14,7 +14,7 @@
 Read( "/home/user/FusionSystems/order38/scripts/gltables.g" );
 
 FS38_GL5Direct3x3 := function()
-    local G, iso, Gp, Ys, tab, Y, N, T, ints, H, cands, r, mats, module, M11, pm, cf, rep, m, embed, d, gens, NT, res, T0, found, Tp;
+    local G, iso, Gp, Ys, tab, Y, N, T, ints, H, cands, r, mats, module, M11, pm, cf, rep, m, embed, d, gens, NT, res, T0, found, Tp, L, W;
     Read( "/home/user/FusionSystems/order38/data/gl4_table.g" );
     G := GL( 5, 3 );
     iso := IsomorphismPermGroup( G );
@@ -38,19 +38,22 @@ FS38_GL5Direct3x3 := function()
             fi;
         od;
     od;
-    # M11 on the 5-dimensional irreducible constituent of its permutation module over GF(3)
+    # M11 on its two 5-dimensional modules over GF(3): they are constituents
+    # of the module induced from a 5-dimensional constituent of the
+    # permutation module of PSL(2,11) < M11 on 11 points
     M11 := MathieuGroup( 11 );
-    pm := PermutationGModule( M11, GF( 3 ) );
-    cf := MTX.CollectedFactors( pm );
+    L := First( List( ConjugacyClassesMaximalSubgroups( M11 ), Representative ), K -> Size( K ) = 660 );
+    cf := MTX.CollectedFactors( PermutationGModule( L, GF( 3 ) ) );
+    W := First( cf, m -> m[1].dimension = 5 )[1];
+    cf := MTX.CollectedFactors( InducedGModule( M11, L, W ) );
     for m in cf do
         if m[1].dimension = 5 then
             mats := List( m[1].generators, x -> ImmutableMatrix( GF( 3 ), x ) );
             Y := Image( iso, Group( mats ) );
-            Add( Ys, rec( name := "M11", grp := Y ) );
-            # the dual module gives the other class
+            if Size( Y ) = 7920 then Add( Ys, rec( name := "M11", grp := Y ) ); fi;
             mats := List( m[1].generators, x -> ImmutableMatrix( GF( 3 ), TransposedMat( x^-1 ) ) );
             Y := Image( iso, Group( mats ) );
-            Add( Ys, rec( name := "M11 (dual)", grp := Y ) );
+            if Size( Y ) = 7920 then Add( Ys, rec( name := "M11 (dual)", grp := Y ) ); fi;
         fi;
     od;
     Info( InfoFusionSystems, 1, "perfect residua: ", List( Ys, y -> [ y.name, Size( y.grp ) ] ) );

@@ -195,8 +195,12 @@ InstallGlobalFunction( ProtoEssentialAutomizerCandidates, function( arg )
     pp := Size( Tbar );
     if pp = 1 then return []; fi;
     t := Runtime();
+    user := fail;
     if IsBound( opts.candidates ) then
+        # a user function; it may return fail to ask for the default enumeration
         user := opts.candidates( S, P );
+    fi;
+    if user <> fail then
         res := [];
         for H in user do
             if IsGroup( H ) and IsSubset( h.model, H ) then
