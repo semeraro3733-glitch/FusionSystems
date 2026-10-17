@@ -121,14 +121,16 @@ end;
 # admissible T with at least one candidate automizer.  For an elementary
 # abelian candidate E of rank n <= 4 the group Aut_S(E) <= GL_n(3) must be
 # conjugate to one of them.
-FS38_GLAdmissible := [];
-FS38_GLGroups := [];
+FS38_GLAdmissible := [];     # admissible T as subgroups of the permutation image
+FS38_GLGroups := [];         # the permutation image of GL(n,3)
+FS38_GLIso := [];            # the isomorphism GL(n,3) -> permutation group
 for n in [ 2 .. 4 ] do
     if IsExistingFile( Concatenation( "/home/user/FusionSystems/order38/data/gl", String( n ), "_table.g" ) ) then
         Read( Concatenation( "/home/user/FusionSystems/order38/data/gl", String( n ), "_table.g" ) );
-        FS38_GLGroups[n] := GL( n, 3 );
+        FS38_GLIso[n] := IsomorphismPermGroup( GL( n, 3 ) );
+        FS38_GLGroups[n] := Image( FS38_GLIso[n] );
         FS38_GLAdmissible[n] := List( Filtered( ValueGlobal( Concatenation( "GLTABLE_", String( n ) ) ), r -> Length( r.cands ) > 0 ),
-                                      r -> Group( List( r.Tmats, m -> m * One( GF( 3 ) ) ) ) );
+                                      r -> Image( FS38_GLIso[n], Group( List( r.Tmats, m -> ImmutableMatrix( GF( 3 ), m * One( GF( 3 ) ) ) ) ) ) );
     fi;
 od;
 
@@ -157,7 +159,7 @@ FS38_AutSMatrices := function( S, E, N )
     pcgs := Pcgs( E );
     mats := [];
     for g in GeneratorsOfGroup( N ) do
-        Add( mats, List( pcgs, x -> ExponentsOfPcElement( pcgs, x^g ) ) * One( GF( 3 ) ) );
+        Add( mats, ImmutableMatrix( GF( 3 ), List( pcgs, x -> ExponentsOfPcElement( pcgs, x^g ) ) * One( GF( 3 ) ) ) );
     od;
     return Group( mats, IdentityMat( Length( pcgs ), GF( 3 ) ) );
 end;
@@ -255,7 +257,7 @@ FS38_Cheap := function( S )
             FS38_Counts.elab := FS38_Counts.elab + 1;
             n := RankPGroup( E );
             if IsBound( FS38_GLAdmissible[n] ) then
-                T := FS38_AutSMatrices( S, E, N );
+                T := Image( FS38_GLIso[n], FS38_AutSMatrices( S, E, N ) );
                 if not ForAny( FS38_GLAdmissible[n], T0 -> Size( T0 ) = Size( T ) and IsConjugate( FS38_GLGroups[n], T0, T ) ) then
                     FS38_Timers.frattini := FS38_Timers.frattini + Runtime() - t; continue;
                 fi;
