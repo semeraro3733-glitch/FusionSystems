@@ -52,10 +52,23 @@ FS38_DescLine := function( d )
 end;
 
 FS38_Stage2 := function( S, name, logfile, opts )
-    local t, L, F, d, res, out;
+    local t, L, F, d, res, out, cheap;
     out := OutputTextFile( logfile, false ); SetPrintFormattingStatus( out, false );
     AppendTo( out, "# Stage 2 for ", name, "\n" );
     t := Runtime();
+    # the proto-essential candidates of Stage 1a (stronger tests than the
+    # package's own), unless the caller supplies them
+    if not IsBound( opts.protoCandidates ) then
+        cheap := FS38_Cheap( S );
+        if cheap.status <> "survive" then
+            AppendTo( out, "# Stage 1a rejects the group: ", cheap.reason, "\n# 0 fusion systems\nDONE\n" );
+            CloseStream( out );
+            return rec( systems := [], descriptions := [], time := Runtime() - t );
+        fi;
+        opts := ShallowCopy( opts );
+        opts.protoCandidates := List( cheap.cands, c -> c.E );
+        AppendTo( out, "# ", Length( cheap.cands ), " candidate essential subgroups from Stage 1a, orders ", List( cheap.cands, c -> c.order ), "\n" );
+    fi;
     L := AllFusionSystems( S, opts );
     AppendTo( out, "# ", Length( L ), " fusion systems (", Runtime() - t, " ms)\n" );
     res := [];

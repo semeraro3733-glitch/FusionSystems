@@ -64,7 +64,7 @@ current state is summarised in Section~\ref{sec:status}.
   about $3\%$ of random groups survive it.
 \item Stage 1b (automorphism group tests on the survivors): not started.
 \item Look-up tables for $\GL_n(3)$: complete for $n\le 4$ (Section~\ref{sec:lookup}).
-\item Stage 2 (fusion systems group by group): started with the known groups; Section~\ref{sec:psl3} done (7 systems).
+\item Stage 2 (fusion systems group by group): started; Sections~\ref{sec:psl3}--\ref{sec:class6none} done (groups 2221, 2225, 2025, 2029); the groups passing Stage 1b are treated in the order of the largest elementary abelian proto-essential subgroup.
 \end{itemize}
 
 \section{Conventions and the strategy}\label{sec:strategy}
@@ -326,11 +326,12 @@ when the group is available in GAP, and are otherwise indicated as
 expectations.  The groups are treated in the order of difficulty (the
 order of the largest elementary abelian proto-essential subgroup).
 
-\subsection{The Sylow 3-subgroup of $\PSL_3(q)$, $3^4\,\|\,q-1$ (maximal class)}
+\subsection{The Sylow 3-subgroup of $\PSL_3(q)$, $3^4\,\|\,q-1$ (maximal class): \texttt{SmallGroup(6561,2221)}}
 \label{sec:psl3}
 
-$S=\big(\{(x,y,z)\in C_{81}^3 : xyz=1\}\rtimes C_3\big)/C_3$ has maximal
-class, $|\Z(S)|=3$, exponent $81$ and an abelian maximal subgroup
+$S=\big(\{(x,y,z)\in C_{81}^3 : xyz=1\}\rtimes C_3\big)/C_3$ is
+\texttt{SmallGroup(6561,2221)} (verified with \texttt{IsomorphismGroups}); it
+has maximal class, $|\Z(S)|=3$, exponent $81$ and an abelian maximal subgroup
 $A\cong C_{81}\times C_{81}$; it is the Sylow $3$-subgroup of $\PSL_3(q)$ for
 $3^4\,\|\,q-1$ (e.g.\ $q=163$) and of $\PSU_3(q)$ for $3^4\,\|\,q+1$ (e.g.\
 $q=647$), and $|\Aut(S)|=2^2\cdot3^{13}$.  The proto-essential subgroups are
@@ -364,7 +365,42 @@ fusion systems on $3$-groups of maximal class were classified by
 D\'{\i}az, Ruiz and Viruel (\emph{All $p$-local finite groups of rank two
 for odd prime $p$}, Trans.\ AMS 2007); the seven systems above should be
 compared with their table for the group $B(3,8;0,0,0)$, which contains
-exotic systems.]}
+exotic systems.]}  The run of \texttt{AllFusionSystems} on
+\texttt{SmallGroup(6561,2221)} from the library (Stage 2 of the pipeline,
+with the candidates of Stage 1a) gives the same seven systems in $19$
+seconds.
+
+\subsection{The other maximal class group with $|\Z(S)|=3$ and exponent 81: \texttt{SmallGroup(6561,2225)}}
+\label{sec:2225}
+
+$S=\texttt{SmallGroup(6561,2225)}$ has maximal class, $|\Z(S)|=3$, exponent
+$81$, $305$ conjugacy classes, no abelian maximal subgroup and
+$|\Aut(S)|=2\cdot3^{12}$.  Its only proto-essential subgroup is an
+elementary abelian $E\cong3^2$ with $|N_S(E):E|=3$ (one $S$-class).  There
+is exactly one fusion system:
+\begin{center}
+\begin{tabular}{clll}
+\toprule
+$\F$ & $\Out_\F(S)$ & essential subgroups & remarks\\
+\midrule
+1 & $C_2$ & $3^2$, $3$, $\SL_2(3)$ & \textcolor{red}{[to be identified]}\\
+\bottomrule
+\end{tabular}
+\end{center}
+($7$ seconds.)
+
+\subsection{Groups of class 6 with two generators carrying no fusion system}
+\label{sec:class6none}
+
+The groups \texttt{SmallGroup(6561,2025)} ($|\Z(S)|=9$, class $6$, exponent
+$27$, $|S'|=3^6$, $|\Aut(S)|=2\cdot3^{12}$) and \texttt{SmallGroup(6561,2029)}
+($|\Z(S)|=3$, class $6$, exponent $27$, $|S'|=3^6$, $|\Aut(S)|=2\cdot3^{12}$)
+survive Stages 1a and 1b with a single proto-essential class $E\cong3^3$,
+$|N_S(E):E|=3$, but \texttt{AllFusionSystems} finds no saturated fusion
+system with $O_3(\F)=1$ and $O^3(\F)=\F$ on them: for the Borel subgroup
+$\Aut_\F(S)=\Inn(S)$ the focal subgroup cannot be $S$, and for
+$|\Out_\F(S)|=2$ no choice of automizer gives a saturated system ($26$ and
+$5$ seconds).
 
 \begin{thebibliography}{9}
 \bibitem{PS} C. Parker, J. Semeraro, \emph{Algorithms for fusion systems with
