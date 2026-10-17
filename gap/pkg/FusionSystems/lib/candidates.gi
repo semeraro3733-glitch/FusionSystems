@@ -368,7 +368,7 @@ InstallGlobalFunction( FS_FrameCandidates, function( S, P, Tbar, opts )
         for i in [ 1 .. n ] do
             l := [ 1 .. Length( pts ) ];
             for k in [ 1 .. p - 1 ] do
-                l[ ( i - 1 ) * ( p - 1 ) + k ] := ( i - 1 ) * ( p - 1 ) + ( ( r * k - 1 ) mod ( p - 1 ) ) + 1;
+                l[ ( i - 1 ) * ( p - 1 ) + k ] := ( i - 1 ) * ( p - 1 ) + ( ( r * k ) mod p );
             od;
             Add( monS, PermList( l ) );
         od;
