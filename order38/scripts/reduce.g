@@ -16,8 +16,12 @@
 ##        element of N_S(E) \ E acts trivially on all factors of a chain of
 ##        characteristic subgroups of E (the stability group of such a chain
 ##        is a normal 3-subgroup of Aut(E), which meets Out_F(E) trivially),
-##        Aut(E) is not a 3-group (autpgrp), Aut_S(E) meets O_3(Aut(E)) in
-##        Inn(E), and Aut(E) is insoluble unless Out_S(E) is cyclic.
+##        Aut(E) is not a 3-group (fingerprint tables of the few groups of
+##        order <= 3^7 with this property, then autpgrp), Aut_S(E) meets
+##        O_3(Aut(E)) in Inn(E), Aut(E) is insoluble unless Out_S(E) is
+##        cyclic, a prime divisor condition for non-cyclic Out_S(E), and for
+##        elementary abelian E of rank <= 4 the class of Aut_S(E) in GL(E)
+##        must carry a candidate automizer (look-up tables).
 ##   (R3) no nontrivial subgroup W of S which is "visibly characteristic" in S
 ##        and in every candidate E (so W is normal in F, W <= O_3(F)).
 ##
@@ -128,6 +132,25 @@ for n in [ 2 .. 4 ] do
     fi;
 od;
 
+# the fingerprints of the groups of order 3^3..3^7 whose automorphism group
+# is not a 3-group (fingerprints.g); a candidate of such an order which is
+# not elementary abelian must have one of these fingerprints
+if IsExistingFile( "/home/user/FusionSystems/order38/data/fingerprints.g" ) then
+    Read( "/home/user/FusionSystems/order38/data/fingerprints.g" );
+    FS38_FingerprintSets := List( [ 1 .. 7 ], k -> fail );
+    for n in [ 3 .. 7 ] do FS38_FingerprintSets[n] := Set( List( FINGERPRINTS[n], x -> x[1] ) ); od;
+else
+    FS38_FingerprintSets := fail;
+fi;
+FS38_Fingerprint := function( E )
+    local Z;
+    Z := Center( E );
+    return [ Size( E ), Size( Z ), Size( FrattiniSubgroup( E ) ), Size( DerivedSubgroup( E ) ), Exponent( E ),
+             NilpotencyClassOfGroup( E ), AbelianInvariants( E ), List( LowerCentralSeriesOfGroup( E ), Size ),
+             List( UpperCentralSeriesOfGroup( E ), Size ), Size( Agemo( E, 3 ) ), Size( Omega( Z, 3 ) ),
+             Collected( List( ConjugacyClasses( E ), c -> [ Order( Representative( c ) ), Size( c ) ] ) ) ];
+end;
+
 # Aut_S(E) as a matrix group on the elementary abelian group E
 FS38_AutSMatrices := function( S, E, N )
     local pcgs, mats, g;
@@ -140,7 +163,7 @@ FS38_AutSMatrices := function( S, E, N )
 end;
 
 # counters: candidates entering each stage
-FS38_Counts := rec( cands := 0, pre := 0, classes := 0, type := 0, frattini := 0, chain := 0, elab := 0, aut := 0, radical := 0, kept := 0 );
+FS38_Counts := rec( cands := 0, pre := 0, classes := 0, type := 0, fingerprint := 0, frattini := 0, chain := 0, elab := 0, aut := 0, radical := 0, kept := 0 );
 
 # timers for the stages of FS38_Cheap (ms)
 FS38_Timers := rec( cands := 0, pre := 0, classes := 0, type := 0, frattini := 0, chain := 0, aut := 0, radical := 0, charS := 0 );
@@ -245,6 +268,14 @@ FS38_Cheap := function( S )
                            elab := true, abelian := true, rank := n, chars := [ E ] ) );
             continue;
         fi;
+        # Aut(E) is not a 3-group: E must have the fingerprint of one of the
+        # few groups of its order with this property
+        if FS38_FingerprintSets <> fail and LogInt( Size( E ), 3 ) >= 3 then
+            if not FS38_Fingerprint( E ) in FS38_FingerprintSets[ LogInt( Size( E ), 3 ) ] then
+                FS38_Timers.frattini := FS38_Timers.frattini + Runtime() - t; continue;
+            fi;
+        fi;
+        FS38_Counts.fingerprint := FS38_Counts.fingerprint + 1;
         # the Frattini quotient test, then the finer chain of characteristic subgroups
         C := FS38_StabilityKernel( N, [ [ Phi, E ] ] );
         FS38_Timers.frattini := FS38_Timers.frattini + Runtime() - t; t := Runtime();

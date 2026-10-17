@@ -183,7 +183,29 @@ maximal chain in the set, so the argument of (d) applies.)  The tests are
 applied in this order, so that $\Aut(E)$ (computed with the GAP package
 \texttt{autpgrp}) is only needed for the candidates surviving (a)--(d);
 the first part of (e) already discards almost all of them, since almost
-all groups of order $3^7$ have a $3$-group of automorphisms.
+all groups of order $3^7$ have a $3$-group of automorphisms.  Indeed, with
+\texttt{autpgrp} we computed the automorphism groups of all groups of order
+$3^k$, $k\le7$ (\texttt{data/aut3table.g}):
+\begin{center}
+\begin{tabular}{lrrrrr}
+\toprule
+$|E|$ & $3^3$ & $3^4$ & $3^5$ & $3^6$ & $3^7$\\
+\midrule
+groups & 5 & 15 & 67 & 504 & 9310\\
+$\Aut(E)$ not a $3$-group & 3 & 5 & 8 & 17 & 37\\
+\bottomrule
+\end{tabular}
+\end{center}
+A candidate which is not elementary abelian must therefore be isomorphic to
+one of these $70$ groups; this is tested first through a cheap
+isomorphism invariant (the orders of the centre, Frattini and derived
+subgroups, the exponent, the class, the abelian invariants, the upper and
+lower central series, $\mho_1$, $\Omega_1(\Z)$ and the class sizes by
+element order; \texttt{data/fingerprints.g}), and $\Aut(E)$ is only
+computed for candidates with a matching fingerprint.  Elementary abelian
+candidates $E\cong 3^n$ have $\Aut(E)=\GL_n(3)$, and for $n\le4$ the
+class of $\Aut_S(E)$ in $\GL_n(3)$ must be one of the classes carrying a
+candidate automizer in the look-up tables of Section~\ref{sec:lookup}.
 
 \begin{lemma}\label{lem:R3}
 {\rm (R3)} If $W\ne 1$ is a characteristic subgroup of $S$ which is contained
