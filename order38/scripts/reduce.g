@@ -378,6 +378,15 @@ FS38_Cheap := function( S )
                 if not ForAny( FS38_GLAdmissible[n], T0 -> Size( T0 ) = Size( T ) and IsConjugate( FS38_GLGroups[n], T0, T ) ) then
                     FS38_Timers.frattini := FS38_Timers.frattini + Runtime() - t; continue;
                 fi;
+            elif n = 5 and type = "C9" then
+                # no subgroup of GL_5(3) has a cyclic Sylow 3-subgroup of
+                # order 9 and a strongly 3-embedded subgroup: a 3-soluble one
+                # would need a faithful action of C9 on a {2,5,11,13}-group
+                # inside GL_5(3), and the only simple group with cyclic Sylow
+                # 3-subgroup of order 9 whose order divides |GL_5(3)| is
+                # L2(8), whose smallest faithful module over GF(3) has
+                # dimension 7 (see report.tex, Section on look-up tables)
+                FS38_Timers.frattini := FS38_Timers.frattini + Runtime() - t; continue;
             elif Size( GL( n, 3 ) ) mod FS38_RequiredDivisor( type ) <> 0 then
                 FS38_Timers.frattini := FS38_Timers.frattini + Runtime() - t; continue;
             fi;
