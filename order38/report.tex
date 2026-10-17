@@ -64,7 +64,7 @@ current state is summarised in Section~\ref{sec:status}.
   about $3\%$ of random groups survive it.
 \item Stage 1b (automorphism group tests on the survivors): not started.
 \item Look-up tables for $\GL_n(3)$: complete for $n\le 4$ (Section~\ref{sec:lookup}).
-\item Stage 2 (fusion systems group by group): started; Sections~\ref{sec:psl3}--\ref{sec:class6none} done (the 7 groups whose proto-essential subgroups have order at most $3^3$); the groups passing Stage 1b are treated in the order of the largest elementary abelian proto-essential subgroup.
+\item Stage 2 (fusion systems group by group): started; Sections~\ref{sec:psl3}--\ref{sec:tier81} done (the 13 groups among the first 92 Stage 1b survivors whose proto-essential subgroups have order at most $3^4$); next: the groups with $E\cong 3^5$, $\Out_S(E)\cong 3^2$, after the $\GL_5(3)$ table; the groups passing Stage 1b are treated in the order of the largest elementary abelian proto-essential subgroup.
 \end{itemize}
 
 \section{Conventions and the strategy}\label{sec:strategy}
@@ -413,6 +413,17 @@ In each case the Borel subgroup $\Aut_\F(S)=\Inn(S)$ is excluded by the
 focal subgroup and for $|\Out_\F(S)|=2$ no choice of automizers
 ($\Out_\F(E)\le\GL_3(3)$ from the table of Section~\ref{sec:lookup}) gives a
 saturated system.
+
+\subsection{Groups whose proto-essential subgroups are $3^4$ with $|N_S(E):E|=3$}
+\label{sec:tier81}
+
+Among the first $92$ groups passing Stage 1b, six have proto-essential
+subgroups $E\cong 3^4$, $|N_S(E):E|=3$ (so $\Out_\F(E)$ is one of the
+$30$, $33$ or $43$ candidates of the three classes of $C_3$ in the
+$\GL_4(3)$ table) and nothing else: \texttt{SmallGroup(6561,}$n$\texttt{)}
+for $n=1111$ ($3$ classes of $E$), $1115$ ($3$), $1167$ ($5$), $1176$ ($9$),
+$1225$ ($9$), $1229$ ($9$).  None of them carries a saturated fusion system
+with $O_3(\F)=1$ and $O^3(\F)=\F$ ($44$ to $143$ seconds each).
 
 \begin{thebibliography}{9}
 \bibitem{PS} C. Parker, J. Semeraro, \emph{Algorithms for fusion systems with
