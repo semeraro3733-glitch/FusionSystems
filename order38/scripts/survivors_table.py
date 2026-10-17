@@ -85,7 +85,10 @@ def main():
             stage2[gid] = parts[1]
     running = set()
     for fn in glob.glob(os.path.join(ROOT, "logs", "stage2_*.log")):
-        gid = int(re.findall(r"stage2_(\d+)\.log", fn)[0])
+        m0 = re.search(r"stage2_(\d+)\.log$", fn)
+        if not m0:
+            continue
+        gid = int(m0.group(1))
         s = open(fn).read()
         if "DONE" in s:
             m = re.search(r"# (\d+) fusion systems", s)
