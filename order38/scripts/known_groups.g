@@ -20,6 +20,13 @@ FS_KnownGroups38 := function()
     N := Subgroup( H, [ z ] );
     S := Image( IsomorphismPcGroup( H / N ) );
     Add( res, rec( name := "Syl_3(PSL3(q)), q = 1 mod 81", group := S, desc := "((C81 x C81) : C3)/C3, Sylow 3-subgroup of PSL3(q) for 3^4 || q-1 and of PSU3(q) for 3^4 || q+1" ) );
+    # (iv) 3D4(q), 3^3 || q^2-1: the model (C27 x C81) : C3 inside C81 wr C3 of
+    #      scripts/d4model.g (validated against 3D4(2)); it is isomorphic to (iii)
+    if IsExistingFile( "/home/user/FusionSystems/order38/data/d4_sylow_model.g" ) then
+        Read( "/home/user/FusionSystems/order38/data/d4_sylow_model.g" );
+        S := PcGroupCode( ValueGlobal( "FS38_D4Model" ), 6561 );
+        Add( res, rec( name := "Syl_3(3D4(q)), 27 || q^2-1", group := S, desc := "(C27 x C81) : C3, Sylow 3-subgroup of 3D4(q) for 3^3 || q^2-1 (isomorphic to (iii))" ) );
+    fi;
     return res;
 end;
 FS_GroupInvariants38 := function( S )

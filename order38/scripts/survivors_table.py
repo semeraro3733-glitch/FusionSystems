@@ -9,7 +9,7 @@ import glob, os, re, collections
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
-KNOWN = {2221: r"$\PSL_3(163)$, $\PSU_3(647)$"}
+KNOWN = {2221: r"$\PSL_3(163)$, $\PSU_3(647)$, ${}^3D_4(53)$"}
 SECTIONS = {2221: "sec:psl3", 2225: "sec:2225",
             2025: "sec:class6none", 2029: "sec:class6none", 2193: "sec:class6none", 2021: "sec:class6none", 2205: "sec:class6none",
             1111: "sec:tier81", 1115: "sec:tier81", 1167: "sec:tier81", 1176: "sec:tier81", 1225: "sec:tier81", 1229: "sec:tier81"}
