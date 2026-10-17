@@ -4,7 +4,7 @@
 # already in data/stage1b.txt, appends one line per group to data/stage1b.txt.
 Read( "/home/user/FusionSystems/order38/scripts/stage1b.g" );
 FS38_RunStage1bAll := function()
-    local base, done, f, line, ids, id, S, r, parts;
+    local base, done, f, line, ids, id, S, r, parts, out;
     base := "/home/user/FusionSystems/order38/data/";
     done := [];
     if IsExistingFile( Concatenation( base, "stage1b.txt" ) ) then
@@ -30,10 +30,12 @@ FS38_RunStage1bAll := function()
     for id in ids do
         S := SmallGroup( 6561, id );
         r := CALL_WITH_CATCH( FS38_Stage1b, [ S ] );
+        out := OutputTextFile( Concatenation( base, "stage1b.txt" ), true ); SetPrintFormattingStatus( out, false );
         if r[1] then
-            AppendTo( Concatenation( base, "stage1b.txt" ), FS38_Stage1bLine( id, r[2] ), "\n" );
+            AppendTo( out, FS38_Stage1bLine( id, r[2] ), "\n" );
         else
-            AppendTo( Concatenation( base, "stage1b.txt" ), id, ";error;", String( r[2] ), "\n" );
+            AppendTo( out, id, ";error;", String( r[2] ), "\n" );
         fi;
+        CloseStream( out );
     od;
 end;
