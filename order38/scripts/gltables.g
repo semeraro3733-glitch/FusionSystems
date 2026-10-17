@@ -17,45 +17,13 @@ FS38_AllowedT := function( T )
     return Size( T ) > 1 and ( IsCyclic( T ) or IsElementaryAbelian( T ) or ( Size( T ) = 27 and Exponent( T ) = 3 ) );
 end;
 
-FS38_GLTable := function( n, complete )
-    local G, iso, Gp, P, Ts, T, reps, res, cands, H, r, M, module, opts, t, V, mats, NT;
-    G := GL( n, 3 );
-    iso := IsomorphismPermGroup( G );
-    Gp := Image( iso );
-    P := SylowSubgroup( Gp, 3 );
-    Ts := Filtered( List( ConjugacyClassesSubgroups( P ), Representative ), T -> Size( T ) <= 3^( 8 - n ) and FS38_AllowedT( T ) );
-    reps := [];
-    for T in Ts do
-        if ForAll( reps, R -> Size( R ) <> Size( T ) or RepresentativeAction( Gp, R, T ) = fail ) then Add( reps, T ); fi;
-    od;
-    SortBy( reps, Size );
-    Info( InfoFusionSystems, 1, "GL(", n, ",3): ", Length( reps ), " classes of admissible 3-subgroups T of orders ", List( reps, Size ) );
-    if complete then
-        if not IsMutable( FS_Options ) then MakeReadWriteGlobal( "FS_Options" ); FS_Options := ShallowCopy( FS_Options ); fi;
-        FS_Options.latticeBound := 10^12; FS_Options.cyclicExtension := true;
-    fi;
-    res := [];
-    for T in reps do
-        t := Runtime();
-        cands := FS_CandidatesInGroup( Gp, 3, T, true, rec() );
-        NT := Normalizer( Gp, T );
-        # fuse under N_G(T) (FS_CandidatesInGroup already does, but be safe)
-        r := rec( n := n, T := T, Tmats := List( GeneratorsOfGroup( T ), x -> PreImagesRepresentative( iso, x ) ),
-                  Ttype := FS38_TypeString( T ), NT := Size( NT ), cands := [] );
-        for H in cands do
-            mats := List( GeneratorsOfGroup( H ), x -> PreImagesRepresentative( iso, x ) );
-            module := GModuleByMats( mats, GF( 3 ) );
-            Add( r.cands, rec( size := Size( H ), gens := mats,
-                 desc := FS38_Describe( H ), NHT := Size( Normalizer( H, T ) ),
-                 soluble := IsSolvableGroup( H ), O3prime := Size( PCore( H, 2 ) ),
-                 irreducible := MTX.IsIrreducible( module ),
-                 composition := List( MTX.CompositionFactors( module ), m -> m.dimension ) ) );
-        od;
-        Unbind( r.cands[1].O3prime );
-        Info( InfoFusionSystems, 1, "  T of order ", Size( T ), " (", r.Ttype, "): ", Length( cands ), " candidates (", Runtime() - t, " ms)" );
-        Add( res, r );
-    od;
-    return res;
+# the largest normal p'-subgroup (assuming every nonabelian simple section has order divisible by p)
+FS38_OpPrime := function( H, p )
+    local R, pr;
+    R := RadicalGroup( H );
+    pr := Difference( PrimeDivisors( Size( R ) ), [ p ] );
+    if Length( pr ) = 0 then return 1; fi;
+    return Size( Core( R, HallSubgroup( R, pr ) ) );
 end;
 
 FS38_TypeString := function( T )
@@ -76,31 +44,99 @@ FS38_Describe := function( H )
     return s;
 end;
 
+
+FS38_GLTable := function( n, complete )
+    local G, iso, Gp, P, Ts, T, reps, res, cands, H, r, M, module, opts, t, V, mats, NT, cls, Tsyl, g;
+    G := GL( n, 3 );
+    iso := IsomorphismPermGroup( G );
+    Gp := Image( iso );
+    P := SylowSubgroup( Gp, 3 );
+    Ts := Filtered( List( ConjugacyClassesSubgroups( P ), Representative ), T -> Size( T ) <= 3^( 8 - n ) and FS38_AllowedT( T ) );
+    reps := [];
+    for T in Ts do
+        if ForAll( reps, R -> Size( R ) <> Size( T ) or RepresentativeAction( Gp, R, T ) = fail ) then Add( reps, T ); fi;
+    od;
+    SortBy( reps, Size );
+    Info( InfoFusionSystems, 1, "GL(", n, ",3): ", Length( reps ), " classes of admissible 3-subgroups T of orders ", List( reps, Size ) );
+    cls := fail;
+    if complete then
+        # all subgroups with 3-part at most 3^(8-n), computed once
+        t := Runtime();
+        if Size( Gp ) <= 10^8 then
+            cls := List( ConjugacyClassesSubgroups( Gp ), Representative );
+        else
+            cls := List( ConjugacyClassesSubgroups( LatticeByCyclicExtension( Gp, function( H ) return FS_PPart( Size( H ), 3 ) <= 3^( 8 - n ); end ) ), Representative );
+        fi;
+        cls := Filtered( cls, H -> Size( H ) mod 3 = 0 and FS_PPart( Size( H ), 3 ) <= 3^( 8 - n ) );
+        Info( InfoFusionSystems, 1, "  ", Length( cls ), " classes of subgroups of order divisible by 3 with 3-part <= 3^", 8 - n, " (", Runtime() - t, " ms)" );
+    fi;
+    res := [];
+    for T in reps do
+        t := Runtime();
+        if cls <> fail then
+            cands := [];
+            for H in Filtered( cls, H -> FS_PPart( Size( H ), 3 ) = Size( T ) ) do
+                Tsyl := SylowSubgroup( H, 3 );
+                if IsNormal( H, Tsyl ) then continue; fi;
+                g := RepresentativeAction( Gp, Tsyl, T );
+                if g = fail then continue; fi;
+                H := ConjugateSubgroup( H, g );
+                if HasStronglyPEmbeddedSubgroup( H, 3 ) then Add( cands, H ); fi;
+            od;
+        else
+            cands := FS_CandidatesInGroup( Gp, 3, T, true, rec() );
+        fi;
+        NT := Normalizer( Gp, T );
+        # fuse under N_G(T) (FS_CandidatesInGroup already does, but be safe)
+        r := rec( n := n, T := T, Tmats := List( GeneratorsOfGroup( T ), x -> PreImagesRepresentative( iso, x ) ),
+                  Ttype := FS38_TypeString( T ), NT := Size( NT ), cands := [] );
+        for H in cands do
+            mats := List( GeneratorsOfGroup( H ), x -> PreImagesRepresentative( iso, x ) );
+            module := GModuleByMats( mats, GF( 3 ) );
+            Add( r.cands, rec( size := Size( H ), gens := mats,
+                 desc := FS38_Describe( H ), NHT := Size( Normalizer( H, T ) ),
+                 soluble := IsSolvableGroup( H ), O3prime := FS38_OpPrime( H, 3 ),
+                 irreducible := MTX.IsIrreducible( module ),
+                 composition := List( MTX.CompositionFactors( module ), m -> m.dimension ) ) );
+        od;
+        Info( InfoFusionSystems, 1, "  T of order ", Size( T ), " (", r.Ttype, "): ", Length( cands ), " candidates (", Runtime() - t, " ms)" );
+        Add( res, r );
+    od;
+    return res;
+end;
+
 # write a table as GAP code (matrices) and as a LaTeX table
 FS38_SaveGLTable := function( tab, gfile, texfile )
-    local r, c, out, i, j;
-    PrintTo( gfile, "# GL(", tab[1].n, ",3) look-up table: for each admissible T, the candidates H (generators as matrices over GF(3))\n" );
-    AppendTo( gfile, "GLTABLE_", tab[1].n, " := [\n" );
+    local r, c, out, n, ints;
+    n := tab[1].n;
+    ints := m -> List( m, v -> List( v, IntFFE ) );
+    out := OutputTextFile( gfile, false ); SetPrintFormattingStatus( out, false );
+    AppendTo( out, "# GL(", n, ",3) look-up table: for each admissible T, the candidates H (generators as matrices over GF(3))\n" );
+    AppendTo( out, "GLTABLE_", n, " := [\n" );
     for r in tab do
-        AppendTo( gfile, "rec( Ttype := \"", r.Ttype, "\", Tmats := ", List( r.Tmats, m -> List( m, v -> List( v, IntFFE ) ) ), ",\n   cands := [\n" );
+        AppendTo( out, "rec( Ttype := \"", r.Ttype, "\", Tmats := ", List( r.Tmats, ints ), ", NT := ", r.NT, ",\n   cands := [\n" );
         for c in r.cands do
-            AppendTo( gfile, "     rec( size := ", c.size, ", desc := \"", c.desc, "\", NHT := ", c.NHT, ", soluble := ", c.soluble,
-                      ", irreducible := ", c.irreducible, ", composition := ", c.composition,
-                      ", gens := ", List( c.gens, m -> List( m, v -> List( v, IntFFE ) ) ), " ),\n" );
+            AppendTo( out, "     rec( size := ", c.size, ", desc := \"", c.desc, "\", NHT := ", c.NHT, ", soluble := ", c.soluble,
+                      ", O3prime := ", c.O3prime, ", irreducible := ", c.irreducible, ", composition := ", c.composition,
+                      ", gens := ", List( c.gens, ints ), " ),\n" );
         od;
-        AppendTo( gfile, "   ] ),\n" );
+        AppendTo( out, "   ] ),\n" );
     od;
-    AppendTo( gfile, "];\n" );
-    PrintTo( texfile, "% automatically generated by gltables.g\n" );
-    AppendTo( texfile, "\\begin{longtable}{lllrrl}\n\\caption{Subgroups $H$ of $GL_", tab[1].n, "(3)$ with a strongly $3$-embedded subgroup, by Sylow $3$-subgroup $T$ (one per $GL_", tab[1].n, "(3)$-class; $|N_H(T)|$; the dimensions of the composition factors of the natural module).}\\\\\n" );
-    AppendTo( texfile, "\\toprule\n$T$ & $|H|$ & $H$ & $|N_H(T)|$ & sol. & comp.\\ factors\\\\\n\\midrule\n\\endfirsthead\n\\toprule\n$T$ & $|H|$ & $H$ & $|N_H(T)|$ & sol. & comp.\\ factors\\\\\n\\midrule\n\\endhead\n" );
+    AppendTo( out, "];\n" );
+    CloseStream( out );
+    out := OutputTextFile( texfile, false ); SetPrintFormattingStatus( out, false );
+    AppendTo( out, "% automatically generated by gltables.g\n" );
+    AppendTo( out, "\\begin{longtable}{llrlrrll}\n\\caption{Subgroups $H$ of $\\GL_", n, "(3)$ with a strongly $3$-embedded subgroup, by Sylow $3$-subgroup $T$ (one $H$ per $N_{\\GL_", n, "(3)}(T)$-class; $|N_H(T)|$, $|O_{3'}(H)|$, whether $H$ is soluble, the dimensions of the composition factors of the natural module).}\\label{tab:gl", n, "}\\\\\n" );
+    AppendTo( out, "\\toprule\n$T$ & $|N(T)|$ & $|H|$ & $H$ & $|N_H(T)|$ & $|O_{3'}(H)|$ & sol. & factors\\\\\n\\midrule\n\\endfirsthead\n\\toprule\n$T$ & $|N(T)|$ & $|H|$ & $H$ & $|N_H(T)|$ & $|O_{3'}(H)|$ & sol. & factors\\\\\n\\midrule\n\\endhead\n\\bottomrule\n\\endfoot\n" );
     for r in tab do
-        for c in r.cands do
-            AppendTo( texfile, "$", r.Ttype, "$ & ", c.size, " & \\texttt{", c.desc, "} & ", c.NHT, " & ", c.soluble, " & ", c.composition, "\\\\\n" );
-        od;
         if Length( r.cands ) = 0 then
-            AppendTo( texfile, "$", r.Ttype, "$ & \\multicolumn{5}{l}{none}\\\\\n" );
+            AppendTo( out, "$", r.Ttype, "$ & ", r.NT, " & \\multicolumn{6}{l}{none}\\\\\n" );
         fi;
+        for c in r.cands do
+            AppendTo( out, "$", r.Ttype, "$ & ", r.NT, " & ", c.size, " & \\texttt{", c.desc, "} & ", c.NHT, " & ", c.O3prime, " & ",
+                      c.soluble, " & ", JoinStringsWithSeparator( List( c.composition, String ), "+" ), "\\\\\n" );
+        od;
     od;
-    AppendTo( texfile, "\\bottomrule\n\\end{longtable}\n" );
+    AppendTo( out, "\\end{longtable}\n" );
+    CloseStream( out );
 end;
