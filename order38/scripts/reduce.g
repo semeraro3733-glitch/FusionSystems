@@ -221,8 +221,12 @@ FS38_Run := function( a, step, b, file, progressfile )
     for id in [ a, a + step .. b ] do
         S := SmallGroup( 6561, id );
         t := Runtime();
-        r := FS38_Cheap( S );
-        line := FS38_Line( id, r );
+        r := CALL_WITH_CATCH( FS38_Cheap, [ S ] );
+        if r[1] then
+            line := FS38_Line( id, r[2] );
+        else
+            line := Concatenation( String( id ), ";error;", String( r[2] ) );
+        fi;
         AppendTo( file, line, ";", Runtime() - t, "\n" );
         n := n + 1;
         if n mod 500 = 0 then
