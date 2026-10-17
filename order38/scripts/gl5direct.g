@@ -7,9 +7,11 @@
 ##                |GL_5(3)|, so the perfect residuum Y of H is A6, SL2(9) or
 ##                M11 (M11 has trivial Schur multiplier) and H lies between Y
 ##                and N(Y) [Frattini argument, as in FS_PerfectCandidates].
-##                A6 and SL2(9) act on F_3^5 as 4+1 (their only faithful
-##                F_3-modules of dimension <= 5), M11 irreducibly (two dual
-##                classes).
+##                SL2(9) acts on F_3^5 as 4+1 (its only faithful F_3-module
+##                of dimension <= 5), A6 as 4+1 or as one of the two non-split
+##                extensions 4/1, 1/4 (the augmentation submodule of the
+##                permutation module on 6 points and its dual), M11
+##                irreducibly (two dual classes).
 ##
 Read( "/home/user/FusionSystems/order38/scripts/gltables.g" );
 
@@ -56,6 +58,19 @@ FS38_GL5Direct3x3 := function()
             if Size( Y ) = 7920 then Add( Ys, rec( name := "M11 (dual)", grp := Y ) ); fi;
         fi;
     od;
+    # A6 on its two non-split 5-dimensional modules: the permutation module
+    # on 6 points is uniserial 1/4/1 over GF(3) (Ext^1(1,4) is one-dimensional
+    # for A6 = L2(9) in characteristic 3), so the augmentation submodule is
+    # the non-split extension 4/1 and its dual is 1/4; their Sylow
+    # 3-subgroups are not conjugate to the one of the split module 4+1
+    pm := PermutationGModule( AlternatingGroup( 6 ), GF( 3 ) );
+    module := MTX.InducedActionSubmodule( pm, First( MTX.BasesSubmodules( pm ), b -> Length( b ) = 5 ) );
+    mats := List( module.generators, x -> ImmutableMatrix( GF( 3 ), x ) );
+    Y := Image( iso, Group( mats ) );
+    if Size( Y ) = 360 then Add( Ys, rec( name := "A6 (4/1)", grp := Y ) ); fi;
+    mats := List( module.generators, x -> ImmutableMatrix( GF( 3 ), TransposedMat( x^-1 ) ) );
+    Y := Image( iso, Group( mats ) );
+    if Size( Y ) = 360 then Add( Ys, rec( name := "A6 (1/4)", grp := Y ) ); fi;
     Info( InfoFusionSystems, 1, "perfect residua: ", List( Ys, y -> [ y.name, Size( y.grp ) ] ) );
     # remove conjugate duplicates
     res := [];
