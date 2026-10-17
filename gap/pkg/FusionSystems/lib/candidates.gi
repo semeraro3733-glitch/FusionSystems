@@ -215,11 +215,11 @@ InstallGlobalFunction( ProtoEssentialAutomizerCandidates, function( arg )
            and ( not IsBound( opts.allowFrames ) or opts.allowFrames ) then
             Info( InfoFusionSystems, 1, "|Out(P)| = ", Size( Mbar ), " for |P| = ", Size( P ),
                   ": adding the candidates from the monomial groups of the Aut_S(P)-invariant frames" );
-            W := Normalizer( Mbar, Tbar );
-            for H in FS_FrameCandidates( S, P, Tbar, opts ) do
-                if ForAny( res, K -> Size( K ) = Size( H ) and RepresentativeAction( W, K, H ) <> fail ) then continue; fi;
-                Add( res, H );
-            od;
+            user := FS_FrameCandidates( S, P, Tbar, opts );
+            user.extra := List( res, H -> PreImage( outd.q, H ) );
+            Info( InfoFusionSystems, 2, "automizer candidates for |P| = ", Size( P ), ": ", FS_CandCount( user ),
+                  " candidates (", Runtime() - t, " ms)" );
+            return user;
         fi;
         Info( InfoFusionSystems, 2, "automizer candidates for |P| = ", Size( P ), ": |Out(P)| = ", Size( Mbar ),
               ", ", Length( res ), " candidates (", Runtime() - t, " ms)" );
@@ -229,49 +229,114 @@ end );
 
 #############################################################################
 ##
-#F  FS_FrameCandidates( <S>, <P>, <Tbar>, <opts> )
+##  The frame method for elementary abelian P with a huge Out(P) = GL(V).
 ##
-##  P elementary abelian of rank n, considered as a vector space V over
-##  GF(p), T = Aut_S(P).  A frame is a set of n one-dimensional subspaces
-##  of V spanning V; its stabilizer in GL(V) is a monomial group
-##  GL(1,p) wr Sym(n).  A T-invariant frame is a union of T-orbits of
-##  lines, i.e. a decomposition of V into transitive permutation modules
-##  for T with chosen base lines; two T-invariant frames of the same type
-##  (multiset of orbit lengths, with the same stabilizers) are conjugate
-##  under C_{GL(V)}(T) (map base lines to base lines and extend
-##  T-equivariantly).  We therefore take one frame of each type and return
-##  the subgroups H of the corresponding monomial groups with Tbar as Sylow
-##  p-subgroup and a strongly p-embedded subgroup, one for each class.
-##  This covers the "imprimitive" automizers of abelian essential subgroups
-##  (e.g. in alternating groups) but it is not a complete enumeration of
-##  all automizer candidates.
+##  Let T = Aut_S(P) = <u> be of order p.  A frame is a set of n lines of V
+##  spanning V; its stabilizer in GL(V) is the monomial group
+##  GL(1,p) wr Sym(n).  A u-invariant frame is a union of <u>-orbits of
+##  lines (of length 1 or p), i.e. a decomposition of V into permutation
+##  modules for <u> with chosen base lines.  Its type is the multiset of
+##  orbit lengths.  Two u-invariant frames of the same type are conjugate
+##  under C_{GL(V)}(u): the linear map sending base vectors to base vectors
+##  and u^i(v) to u^i(v') commutes with u.  Ordering the lines of each orbit
+##  as L, u(L), u^2(L), ... and choosing generators g, u(g), u^2(g), ... of
+##  the lines, every frame of a given type is identified canonically with
+##  the first one, the monomial groups being identified as permutation
+##  groups on the (p-1)n non-trivial multiples of the generators ("index
+##  permutations"); the identification differs from any other
+##  C_{GL(V)}(u)-conjugation only by an element normalizing T inside the
+##  monomial group.
 ##
+##  FS_FrameCandidates returns a record (a "frame data" record) with the
+##  u-invariant frames of each type and, for each type, the candidates
+##  (subgroups of the monomial group with T as Sylow p-subgroup and a
+##  strongly p-embedded subgroup, one for each class) as index permutation
+##  groups.  FS_BorelCompatibleFrameCandidates runs the Borel
+##  compatibility test for every frame invariant under Aut_{N_B(P)}(P),
+##  entirely in the small permutation representation, and converts the
+##  surviving candidates into subgroups of the model of Aut(P).  The method
+##  covers the "imprimitive" automizers of abelian essential subgroups (as
+##  in alternating groups) but it is not a complete enumeration of all
+##  automizer candidates.
+##
+
+# the generators of the lines of a frame, ordered compatibly with u
+BindGlobal( "FS_FrameGenerators", function( frame, u )
+    local gens, orbit, g, i;
+    gens := [];
+    for orbit in frame do
+        g := GeneratorsOfGroup( orbit[1] )[1];
+        Add( gens, g );
+        for i in [ 2 .. Length( orbit ) ] do
+            g := ImagesRepresentative( u, g );
+            Add( gens, g );
+        od;
+    od;
+    return gens;
+end );
+
+BindGlobal( "FS_FramePoints", function( gens, p )
+    return Concatenation( List( gens, g -> List( [ 1 .. p - 1 ], k -> g^k ) ) );
+end );
+
+# the index permutation of an automorphism a of P preserving the frame, or fail
+BindGlobal( "FS_FrameToPerm", function( a, pts )
+    local l, pt, pos;
+    l := [];
+    for pt in pts do
+        pos := Position( pts, ImagesRepresentative( a, pt ) );
+        if pos = fail then return fail; fi;
+        Add( l, pos );
+    od;
+    return PermList( l );
+end );
+
+# the automorphism of P given by an index permutation
+BindGlobal( "FS_FrameFromPerm", function( x, P, gens, pts )
+    return GroupHomomorphismByImagesNC( P, P, gens, List( gens, g -> pts[ Position( pts, g ) ^ x ] ) );
+end );
+
 InstallGlobalFunction( FS_FrameCandidates, function( S, P, Tbar, opts )
-    local p, h, outd, Mbar, q, n, pcgs, lines, Tgens, Tgrp, orbs, frames, types, res, i, mon, cls, H,
-          frame, Dgens, Pgens, sigma, img, W, candfr, typ, stabsize, D, NT, Ks, K, X, ints, N, L, pts, toS, back, monS, TS;
+    local p, h, outd, Mbar, q, n, lines, u, orbs, orb, orbit, img, types, frames, candfr, data, t, frame,
+          gens, pts, monS, TS, r, i, k, l, perm, cls, D, NT, Ks, K, X, ints, N, H, L, sigma, ncomb, maxcomb;
     p := PrimePGroup( P );
     h := FS_AutHandle( P );
     outd := FS_OutData( P );
     Mbar := outd.Mbar; q := outd.q;
-    pcgs := FS_PcgsOf( P );
-    n := Length( pcgs );
+    n := Length( FS_PcgsOf( P ) );
+    data := rec( isFrameData := true, P := P, p := p, n := n, types := [], frames := [], typedata := [], extra := [] );
+    if Size( Tbar ) <> p then return data; fi;
+    u := h.from( PreImagesRepresentative( q, First( GeneratorsOfGroup( Tbar ), x -> not IsOne( x ) ) ) );
+    data.u := u;
     lines := DuplicateFreeList( List( Filtered( AsList( P ), x -> not IsOne( x ) ), x -> SubgroupNC( P, [ x ] ) ) );
-    Tgens := List( GeneratorsOfGroup( Tbar ), x -> h.from( PreImagesRepresentative( q, x ) ) );
-    Tgrp := Group( Tgens );
-    orbs := OrbitsDomain( Tgrp, lines, FS_OnImage );
-    # the type of an orbit: its length and the order of the stabilizer of a line
-    stabsize := List( orbs, o -> Size( Tbar ) / Length( o ) );
-    frames := []; types := [];
+    # the <u>-orbits of lines, each ordered as L, u(L), u^2(L), ...
+    orbs := [];
+    for orb in OrbitsDomain( Group( [ u ] ), lines, FS_OnImage ) do
+        orbit := [ orb[1] ];
+        img := ImagesSet( u, orb[1] );
+        while Length( orbit ) < Length( orb ) do
+            Add( orbit, img );
+            img := ImagesSet( u, img );
+        od;
+        Add( orbs, orbit );
+    od;
+    # the u-invariant frames: unions of orbits of total size n spanning P
+    types := []; frames := [];
+    ncomb := 0; maxcomb := 200000;
     candfr := function( chosen, start, size )
-        local k, gens, t;
+        local k, gens, t, pos;
+        ncomb := ncomb + 1;
+        if ncomb > maxcomb then return; fi;
         if size = n then
             gens := Concatenation( List( chosen, k -> List( orbs[k], L -> GeneratorsOfGroup( L )[1] ) ) );
             if Size( SubgroupNC( P, gens ) ) = Size( P ) then
-                t := SortedList( List( chosen, k -> [ Length( orbs[k] ), stabsize[k] ] ) );
-                if not t in types then
-                    Add( types, t );
-                    Add( frames, Concatenation( List( chosen, k -> orbs[k] ) ) );
+                t := SortedList( List( chosen, k -> Length( orbs[k] ) ) );
+                pos := Position( types, t );
+                if pos = fail then
+                    Add( types, t ); Add( frames, [] ); pos := Length( types );
                 fi;
+                # the orbits in the order of the type (ascending lengths)
+                Add( frames[ pos ], List( chosen, k -> orbs[k] ) );
             fi;
             return;
         fi;
@@ -282,44 +347,47 @@ InstallGlobalFunction( FS_FrameCandidates, function( S, P, Tbar, opts )
         od;
     end;
     candfr( [], 1, 0 );
-    Info( InfoFusionSystems, 2, Length( frames ), " types of T-invariant frames: ", types );
-    if Length( frames ) = 0 then return []; fi;
-    W := Normalizer( Mbar, Tbar );
-    res := [];
-    for frame in frames do
-        # the monomial group of the frame
-        Pgens := List( frame, L -> GeneratorsOfGroup( L )[1] );
-        Dgens := [];
+    if ncomb > maxcomb then
+        Info( InfoFusionSystems, 1, "too many unions of <u>-orbits of lines: the frame method is skipped" );
+        return data;
+    fi;
+    for t in [ 1 .. Length( types ) ] do
+        # order the orbits of every frame by length
+        for frame in frames[t] do SortBy( frame, orbit -> Length( orbit ) ); od;
+    od;
+    Info( InfoFusionSystems, 2, Length( types ), " types of u-invariant frames: ", types,
+          " with ", List( frames, Length ), " frames" );
+    data.types := types; data.frames := frames;
+    for t in [ 1 .. Length( types ) ] do
+        frame := frames[t][1];
+        gens := FS_FrameGenerators( frame, u );
+        pts := FS_FramePoints( gens, p );
+        # the monomial group as index permutations: scalings and permutations of the generators
+        monS := [];
+        r := PrimitiveRootMod( p );
         for i in [ 1 .. n ] do
-            img := ShallowCopy( Pgens );
-            img[i] := Pgens[i] ^ PrimitiveRootMod( p );
-            Add( Dgens, GroupHomomorphismByImagesNC( P, P, Pgens, img ) );
+            l := [ 1 .. Length( pts ) ];
+            for k in [ 1 .. p - 1 ] do
+                l[ ( i - 1 ) * ( p - 1 ) + k ] := ( i - 1 ) * ( p - 1 ) + ( ( r * k - 1 ) mod ( p - 1 ) ) + 1;
+            od;
+            Add( monS, PermList( l ) );
         od;
         for sigma in GeneratorsOfGroup( SymmetricGroup( n ) ) do
-            img := List( [ 1 .. n ], i -> Pgens[ i ^ sigma ] );
-            Add( Dgens, GroupHomomorphismByImagesNC( P, P, Pgens, img ) );
+            l := [];
+            for i in [ 1 .. n ] do
+                for k in [ 1 .. p - 1 ] do
+                    l[ ( i - 1 ) * ( p - 1 ) + k ] := ( i ^ sigma - 1 ) * ( p - 1 ) + k;
+                od;
+            od;
+            Add( monS, PermList( l ) );
         od;
-        mon := Image( q, FS_AutSubgroup( h, Dgens ) );
-        if not IsSubset( mon, Tbar ) then continue; fi;
-        # the monomial group acts faithfully on the (p-1)n non-trivial
-        # multiples of the frame generators; all subgroup computations are
-        # done in this small permutation representation
-        pts := Concatenation( List( Pgens, g -> List( [ 1 .. p - 1 ], k -> g^k ) ) );
-        toS := function( x )
-            local a;
-            a := h.from( PreImagesRepresentative( q, x ) );
-            return PermList( List( pts, pt -> Position( pts, ImagesRepresentative( a, pt ) ) ) );
-        end;
-        monS := Group( List( GeneratorsOfGroup( mon ), toS ) );
-        # the inverse map (the generic PreImage of an action homomorphism
-        # would enumerate the large group)
-        back := GroupHomomorphismByImagesNC( monS, mon, GeneratorsOfGroup( monS ), GeneratorsOfGroup( mon ) );
-        TS := SubgroupNC( monS, List( GeneratorsOfGroup( Tbar ), toS ) );
+        D := SubgroupNC( Group( monS ), monS{[ 1 .. n ]} );
+        monS := Group( monS );
+        TS := SubgroupNC( monS, [ FS_FrameToPerm( u, pts ) ] );
         cls := FS_CandidatesInGroup( monS, p, TS, false, opts );
-        if not FS_LatticeFeasible( monS, p, Size( TS ) ) and FS_IsQuaternionOrCyclic( TS ) then
+        if not FS_LatticeFeasible( monS, p, Size( TS ) ) then
             # the p-soluble candidates H = K N with K = O_{p'}(H) inside the
-            # diagonal subgroup D of the monomial group and N <= N_mon(T)
-            D := SubgroupNC( monS, List( GeneratorsOfGroup( Image( q, FS_AutSubgroup( h, Dgens{[ 1 .. n ]} ) ) ), toS ) );
+            # diagonal subgroup D and N <= N_mon(T)
             NT := Normalizer( monS, TS );
             Ks := SubgroupsSolvableGroup( D, rec( actions := List( GeneratorsOfGroup( TS ), x -> ConjugatorAutomorphismNC( D, x ) ) ) );
             for K in Ks do
@@ -339,12 +407,98 @@ InstallGlobalFunction( FS_FrameCandidates, function( S, P, Tbar, opts )
                 od;
             od;
         fi;
-        Info( InfoFusionSystems, 2, "frame of type ", types[ Position( frames, frame ) ], ": ", Length( cls ),
-              " candidates in the monomial group" );
-        cls := List( cls, H -> SubgroupNC( mon, List( GeneratorsOfGroup( H ), x -> ImagesRepresentative( back, x ) ) ) );
-        for H in cls do
-            if Length( frames ) > 1 and ForAny( res, K -> Size( K ) = Size( H ) and RepresentativeAction( W, K, H ) <> fail ) then continue; fi;
-            Add( res, H );
+        Info( InfoFusionSystems, 2, "frames of type ", types[t], ": ", Length( cls ), " candidates in the monomial group" );
+        Add( data.typedata, rec( cands := cls, monS := monS, TS := TS, WS := Normalizer( monS, TS ) ) );
+    od;
+    return data;
+end );
+
+#############################################################################
+##
+#F  FS_TransportFrameData( <data>, <theta> ) . . . . . theta: P -> Q an isomorphism
+##
+BindGlobal( "FS_TransportFrameData", function( data, theta )
+    local new;
+    new := ShallowCopy( data );
+    new.P := Range( theta );
+    if IsBound( data.u ) then new.u := FS_TransportAut( data.u, theta ); fi;
+    new.frames := List( data.frames, fl -> List( fl, frame -> List( frame, orbit -> List( orbit, L -> ImagesSet( theta, L ) ) ) ) );
+    return new;
+end );
+
+#############################################################################
+##
+#F  FS_CandCount( <cands> ) . . . . . number of class candidates (list or frame data)
+##
+InstallGlobalFunction( FS_CandCount, function( cands )
+    if IsRecord( cands ) then
+        return Sum( List( cands.typedata, td -> Length( td.cands ) ) ) + Length( cands.extra );
+    fi;
+    return Length( cands );
+end );
+
+#############################################################################
+##
+#F  FS_BorelCompatibleFrameCandidates( <F0>, <P>, <data>, <maxenough> )
+##
+BindGlobal( "FS_BorelCompatibleFrameCandidates", function( F0, P, data, maxenough )
+    local S, p, h, res, AutBgens, t, td, frame, gens, pts, AutBS, NWS, H, NH, subs, sw, c, cand, tr, nn,
+          found, autgens, A, linesets, inv, g, L, Lg;
+    S := F0!.S; p := F0!.p;
+    h := FS_AutHandle( P );
+    res := [];
+    if Length( data.types ) = 0 then return res; fi;
+    AutBgens := FS_AutBGenerators( F0, P );
+    for t in [ 1 .. Length( data.types ) ] do
+        td := data.typedata[t];
+        if Length( td.cands ) = 0 then continue; fi;
+        for frame in data.frames[t] do
+            # is the frame invariant under Aut_B(P)?  (test on the lines first)
+            linesets := Concatenation( frame );
+            inv := true;
+            for g in AutBgens do
+                for L in linesets do
+                    if not ImagesSet( g, L ) in linesets then inv := false; break; fi;
+                od;
+                if not inv then break; fi;
+            od;
+            if not inv then continue; fi;
+            gens := FS_FrameGenerators( frame, data.u );
+            pts := FS_FramePoints( gens, p );
+            AutBS := List( AutBgens, g -> FS_FrameToPerm( g, pts ) );
+            if fail in AutBS then continue; fi;
+            AutBS := SubgroupNC( td.monS, AutBS );
+            NWS := Normalizer( td.WS, AutBS );
+            for H in td.cands do
+                if HasFSSylowNormalizer( H ) then
+                    NH := FSSylowNormalizer( H );
+                else
+                    NH := Normalizer( H, td.TS );
+                    SetFSSylowNormalizer( H, NH );
+                fi;
+                if Size( NH ) mod Size( AutBS ) <> 0 then continue; fi;
+                if maxenough then
+                    if Size( NH ) <> Size( AutBS ) then continue; fi;
+                    subs := [ NH ];
+                else
+                    subs := Filtered( List( ConjugacyClassesSubgroups( NH ), Representative ), U -> Size( U ) = Size( AutBS ) );
+                    subs := Concatenation( List( subs, U -> AsList( ConjugacyClassSubgroups( NH, U ) ) ) );
+                    subs := Filtered( subs, U -> IsSubset( U, td.TS ) );
+                fi;
+                for sw in subs do
+                    c := RepresentativeAction( td.WS, sw, AutBS );
+                    if c = fail then continue; fi;
+                    cand := ConjugateSubgroup( H, c );
+                    tr := RightTransversal( NWS, Normalizer( NWS, cand ) );
+                    for nn in tr do
+                        found := ConjugateSubgroup( cand, nn );
+                        autgens := List( GeneratorsOfGroup( found ), x -> FS_FrameFromPerm( x, P, gens, pts ) );
+                        A := FS_AutSubgroup( h, autgens );
+                        if ForAny( res, K -> Size( K ) = Size( A ) and K = A ) then continue; fi;
+                        if FS_CoreCompatible( F0, P, A ) then Add( res, A ); fi;
+                    od;
+                od;
+            od;
         od;
     od;
     return res;
@@ -427,7 +581,16 @@ end );
 ##  N_A(T) >= Aut_B(P) (= if maxenough) which pass the core test.
 ##
 InstallGlobalFunction( FS_BorelCompatibleCandidates, function( F0, P, classcands, maxenough )
-    local S, p, h, M, T, W, AutB, res, A, NA, subs, sw, w, NW, n, cand, found, tr;
+    local S, p, h, M, T, W, AutB, res, A, NA, subs, sw, w, NW, n, cand, found, tr, fr;
+    if IsRecord( classcands ) then
+        fr := FS_BorelCompatibleFrameCandidates( F0, P, classcands, maxenough );
+        if Length( classcands.extra ) > 0 then
+            for A in FS_BorelCompatibleCandidates( F0, P, classcands.extra, maxenough ) do
+                if not ForAny( fr, K -> Size( K ) = Size( A ) and K = A ) then Add( fr, A ); fi;
+            od;
+        fi;
+        return fr;
+    fi;
     S := F0!.S; p := F0!.p;
     h := FS_AutHandle( P );
     M := h.model;

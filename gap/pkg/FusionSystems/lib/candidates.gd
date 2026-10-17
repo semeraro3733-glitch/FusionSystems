@@ -5,6 +5,7 @@
 ##  Candidates for the automizers Aut_F(P) of proto-essential subgroups.
 ##
 DeclareGlobalFunction( "FS_OutData" );
+DeclareGlobalFunction( "FS_CandCount" );
 DeclareAttribute( "FSSylowNormalizer", IsGroup, "mutable" );
 DeclareGlobalFunction( "FS_SubgroupClassesWithPPart" );
 DeclareGlobalFunction( "FS_LatticeFeasible" );

@@ -138,7 +138,7 @@ end );
 #F  FS_FusionSystemsForBorel( <S>, <borel>, <proto>, <classcands>, <opts> )
 ##
 InstallGlobalFunction( FS_FusionSystemsForBorel, function( S, borel, proto, classcands, opts )
-    local p, F0, hS, cplElts, Pess, Pinv, Plabel, Ptheta, i, j, k, pos, P, cand, changed, maxenough, N, hP, hQ, theta,
+    local p, F0, hS, cplElts, Pess, Pinv, Plabel, Ptheta, i, j, k, pos, P, cand, candsrc, candmax, changed, maxenough, N, hP, hQ, theta,
           A0, Nrm, nrmauts, perms, perm, a, img, Pi, subsets, D, results, Ess, lists, stabgens, alpha, sig, act,
           tuples, nt, idx, t, orbrep, uf, find, union, tup, imgtup, c, s, Aimg, F, essauts, r, kept, iso, t0, total, nsat,
           prod, ok, SdS;
@@ -172,33 +172,42 @@ InstallGlobalFunction( FS_FusionSystemsForBorel, function( S, borel, proto, clas
         fi;
     fi;
     # transport the class candidates to the B-class representatives
-    cand := [];
+    cand := []; candsrc := [];
     for j in [ 1 .. Length( Pess ) ] do
         if IsIdenticalObj( Pess[j], proto.autreps[ Plabel[j] ] ) and IsOne( Ptheta[j] ) then
-            cand[j] := ShallowCopy( classcands[ Plabel[j] ] );
+            candsrc[j] := classcands[ Plabel[j] ];
+        elif IsRecord( classcands[ Plabel[j] ] ) then
+            hP := FS_AutHandle( proto.autreps[ Plabel[j] ] );
+            hQ := FS_AutHandle( Pess[j] );
+            candsrc[j] := FS_TransportFrameData( classcands[ Plabel[j] ], Ptheta[j] );
+            candsrc[j].extra := List( classcands[ Plabel[j] ].extra, A -> FS_TransportCandidate( A, hP, hQ, Ptheta[j] ) );
         else
             hP := FS_AutHandle( proto.autreps[ Plabel[j] ] );
             hQ := FS_AutHandle( Pess[j] );
-            cand[j] := List( classcands[ Plabel[j] ], A -> FS_TransportCandidate( A, hP, hQ, Ptheta[j] ) );
+            candsrc[j] := List( classcands[ Plabel[j] ], A -> FS_TransportCandidate( A, hP, hQ, Ptheta[j] ) );
         fi;
+        cand[j] := fail; candmax[j] := fail;
     od;
-    # Borel compatible candidates, iterated until stable
+    # Borel compatible candidates, iterated until stable (the set of live
+    # proto-essentials determines the "maxenough" condition)
     changed := true;
     while changed do
         changed := false;
         for j in [ 1 .. Length( Pess ) ] do
-            if Length( cand[j] ) = 0 then continue; fi;
+            if cand[j] <> fail and Length( cand[j] ) = 0 then continue; fi;
             N := Normalizer( S, Pess[j] );
             maxenough := true;
             for k in [ 1 .. Length( Pess ) ] do
-                if Length( cand[k] ) = 0 then continue; fi;
+                if cand[k] <> fail and Length( cand[k] ) = 0 then continue; fi;
                 if Size( Pess[k] ) < Size( N ) then continue; fi;
                 for c in cplElts do
                     if FS_IsConjugateInto( S, ImagesSet( c, N ), Pess[k] ) then maxenough := false; break; fi;
                 od;
                 if not maxenough then break; fi;
             od;
-            cand[j] := FS_BorelCompatibleCandidates( F0, Pess[j], cand[j], maxenough );
+            if cand[j] <> fail and candmax[j] = maxenough then continue; fi;
+            cand[j] := FS_BorelCompatibleCandidates( F0, Pess[j], candsrc[j], maxenough );
+            candmax[j] := maxenough;
             Info( InfoFusionSystems, 2, "  proto-essential of order ", Size( Pess[j] ), ": ", Length( cand[j] ),
                   " compatible automizer candidates (maxenough = ", maxenough, ")" );
             if Length( cand[j] ) = 0 then changed := true; fi;
@@ -376,9 +385,9 @@ InstallGlobalFunction( AllFusionSystems, function( arg )
     for i in [ 1 .. Length( proto.autreps ) ] do
         classcands[i] := ProtoEssentialAutomizerCandidates( S, proto.autreps[i], copts );
         Info( InfoFusionSystems, 1, "proto-essential of order ", Size( proto.autreps[i] ), ": ",
-              Length( classcands[i] ), " classes of automizer candidates (", Runtime() - t0, " ms)" );
+              FS_CandCount( classcands[i] ), " classes of automizer candidates (", Runtime() - t0, " ms)" );
     od;
-    keep := Filtered( [ 1 .. Length( proto.autreps ) ], i -> Length( classcands[i] ) > 0 );
+    keep := Filtered( [ 1 .. Length( proto.autreps ) ], i -> FS_CandCount( classcands[i] ) > 0 );
     if Length( keep ) = 0 then
         if opts.OpTriv then return []; fi;
         borels := BorelSubgroups( S, opts.OutFSOrders );
