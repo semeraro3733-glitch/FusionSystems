@@ -61,7 +61,7 @@ current state is summarised in Section~\ref{sec:status}.
 \begin{itemize}
 \item Stage 1a (cheap reduction of the $1\,396\,077$ groups): \emph{running}.
 \item Stage 1b (automorphism group tests on the survivors): not started.
-\item Look-up tables for $\GL_n(3)$: $n\le 3$ in progress, $n=4$ queued.
+\item Look-up tables for $\GL_n(3)$: complete for $n\le 4$ (Section~\ref{sec:lookup}).
 \item Stage 2 (fusion systems group by group): not started.
 \end{itemize}
 
@@ -250,7 +250,24 @@ $3$-embedded subgroup, up to conjugacy in $N_{\GL_n(3)}(T)$.  For $n\le4$ the
 tables are complete.  They are produced by \texttt{scripts/gltables.g} and
 stored in machine-readable form in \texttt{data/gl$n$\_table.g}.
 
-\textcolor{red}{[tables to be included: \texttt{tables/gl2.tex}, \texttt{tables/gl3.tex}, \texttt{tables/gl4.tex}]}
+The classes of $T$ are distinguished in the tables by $|N_{\GL_n(3)}(T)|$;
+when the same $H$ appears several times for one $T$ the copies are not
+conjugate under $N_{\GL_n(3)}(T)$ (they differ in the way $H$ acts, e.g.\ in
+the determinant or in the composition factors).  The column ``factors''
+gives the dimensions of the composition factors of $H$ on the natural
+module, so that e.g.\ $1+2$ for $\SL_2(3)\le\GL_3(3)$ means the module has a
+trivial submodule with irreducible $2$-dimensional quotient.  For $n\le 4$
+the only candidates with a non-cyclic Sylow $3$-subgroup occur for two
+classes of $T\cong 3^2$ in $\GL_4(3)$: the extensions of $\Alt(6)\cong
+\Omega_4^-(3)$ and of $\SL_2(9)=2.\Alt(6)$ by subgroups of
+$\mathrm{Out}(\Alt(6))$ and by scalars; $T\cong C_9$, $3^3$, $3^4$ and
+$3^{1+2}_+$ admit no candidates in $\GL_4(3)$.  (The Ree groups and
+$\PSU_3(9)$ need $n\ge 6$, $\PSL_3(4)$ and $M_{11}$ need $n\ge 5$.)
+
+\input{tables/gl2.tex}
+\input{tables/gl3.tex}
+\input{tables/gl4.tex}
+
 
 \section{Results group by group}\label{sec:results}
 \textcolor{red}{[to be filled in: one subsection per group, in the order of
