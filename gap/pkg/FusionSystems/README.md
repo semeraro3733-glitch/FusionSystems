@@ -99,7 +99,7 @@ O^p(F) = F) and the fusion system of the starting group is recovered with
 | 5^{1+2}_+ | | 3 | 10 s | Ruiz–Viruel: PSL(3,5), PSL(3,5).2, Th |
 | 7^{1+2}_+ | | 13 | 28 s | Ruiz–Viruel: 10 realised by L3(7), He, Fi24', O'N and extensions, 3 exotic |
 | Sylow 3 of PSU(4,3), order 3^6 | `GroupFusionSystem( PSU(4,3), 3 )` | 13 | 126 s | the U4(3).X family (X ≤ D8), McL, McL.2, U6(2), ... |
-| Sylow 5 of Alt(30), order 5^7 | `GroupFusionSystem( AlternatingGroup(30), 5 )` | see `examples/examples.log` | | the automizer candidates of the abelian essential subgroup 5^6 come from the frame method |
+| Sylow 5 of Alt(30), order 5^7 | `GroupFusionSystem( AlternatingGroup(30), 5 )` | 23 | 56 min (+ 13 s for the isomorphism test) | |Out_F(S)| = 8, 16, 32, 64; essentials 5^6 with 5^4 or 5^3; the automizer candidates of the abelian 5^6 come from the frame method; see `examples/logs/Alt30_p5.log` |
 
 Checks of the engine against finite groups: for the fusion systems of
 S4, PSL(3,3), A6, PSL(3,4), PSp(4,3), A9, PSL(3,5), M12, S9 (and PSL(3,7),
