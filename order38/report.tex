@@ -63,7 +63,7 @@ current state is summarised in Section~\ref{sec:status}.
   17 October 2026 on four cores (about $0.4$ s per group, so roughly two days);
   about $3\%$ of random groups survive it.
 \item Stage 1b (automorphism group tests on the survivors): not started.
-\item Look-up tables for $\GL_n(3)$: complete for $n\le 4$ (Section~\ref{sec:lookup}).
+\item Look-up tables for $\GL_n(3)$: complete for $n\le 4$, and for $n=5$, $T\cong3^2$ (Section~\ref{sec:lookup}).
 \item Stage 2 (fusion systems group by group): started; Sections~\ref{sec:psl3}--\ref{sec:tier81} done (the 13 groups among the first 92 Stage 1b survivors whose proto-essential subgroups have order at most $3^4$); next: the groups with $E\cong 3^5$, $\Out_S(E)\cong 3^2$, after the $\GL_5(3)$ table; the groups passing Stage 1b are treated in the order of the largest elementary abelian proto-essential subgroup.
 \end{itemize}
 
@@ -311,6 +311,31 @@ $\PSU_3(9)$ need $n\ge 6$, $\PSL_3(4)$ and $M_{11}$ need $n\ge 5$.)
 \input{tables/gl2.tex}
 \input{tables/gl3.tex}
 \input{tables/gl4.tex}
+
+\paragraph{$\GL_5(3)$, $T\cong 3^2$.}  For $n=5$ the subgroup lattice is out
+of reach, but for $T\cong 3^2$ the candidates can be constructed directly:
+$O^{3'}(H/O_{3'}(H))$ is $\Alt(6)$, $\PSL_3(4)$ or $M_{11}$, and $7\nmid|\GL_5(3)|$
+excludes $\PSL_3(4)$; hence the perfect residuum $Y$ of $H$ is $\Alt(6)$,
+$\SL_2(9)$ or $M_{11}$ ($M_{11}$ has trivial Schur multiplier), and $H$ lies
+between $Y$ and $N_{\GL_5(3)}(Y)$ by the Frattini argument.  $\Alt(6)$ and
+$\SL_2(9)$ have no faithful $\mathbb{F}_3$-module of dimension $5$ other than
+$4+1$, so they come from the $\GL_4(3)$ table; $M_{11}$ has two dual
+irreducible $5$-dimensional modules (constituents of the module induced from
+a $5$-dimensional constituent of the permutation module of $\PSL_2(11)<M_{11}$
+on $11$ points), giving two further classes of $T$.  The script is
+\texttt{scripts/gl5direct.g}; the four classes of $T\cong3^2$ in $\GL_5(3)$
+with candidates carry $34$, $27$, $2$ and $2$ of them.
+\input{tables/gl5_3x3.tex}
+
+\paragraph{Use of the tables.}  In Stage 1a an elementary abelian candidate
+$E\cong3^n$ is discarded unless $\Aut_S(E)$ is conjugate in $\GL_n(3)$ to a
+class with candidates ($n\le4$, and $n=5$ for $\Out_S(E)\cong3^2$), and in
+Stage 2 the automizer candidates for such $E$ are taken from the tables
+(transported along the conjugating matrix) instead of being enumerated
+anew for each group.  This matters for correctness as well as for speed: for
+$|\GL_n(3)|$ beyond the lattice bound the package's own enumeration of the
+soluble candidates for cyclic $\Out_S(E)$ (the frame method) is not
+complete, e.g.\ it misses the irreducible $13{:}3\le\GL_3(3)\le\GL_4(3)$.
 
 
 \section{Results group by group}\label{sec:results}
