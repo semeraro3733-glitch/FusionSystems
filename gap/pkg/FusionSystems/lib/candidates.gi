@@ -296,6 +296,60 @@ BindGlobal( "FS_FrameFromPerm", function( x, P, gens, pts )
     return GroupHomomorphismByImagesNC( P, P, gens, List( gens, g -> pts[ Position( pts, g ) ^ x ] ) );
 end );
 
+#############################################################################
+##
+#F  FS_MonomialCandidates( <monS>, <D>, <TS>, <p>, <n> )
+##
+##  monS = D x| Sym(n) a monomial group given as index permutations (D the
+##  diagonal subgroup, acting on n blocks of p-1 points), TS a subgroup
+##  of order p.  Returns the subgroups H of monS with TS as Sylow
+##  p-subgroup and a strongly p-embedded subgroup, one for each class.  A
+##  subgroup H is determined by X = HD/D, K = H meet D (an X-invariant
+##  subgroup of the abelian group D) and a complement of D/K in (D X)/K;
+##  this enumeration is complete and does not depend on the library of
+##  perfect groups (which omits some orders, e.g. 368640 = |4^5:A6|).
+##
+BindGlobal( "FS_MonomialCandidates", function( monS, D, TS, p, n )
+    local blocks, pi, SymS, ubar, Xs, X, g, Hhat, acts, Ks, K, nat, Q, DK, comps, C, H, Tsyl, res;
+    blocks := List( [ 1 .. n ], i -> [ ( i - 1 ) * ( p - 1 ) + 1 .. i * ( p - 1 ) ] );
+    pi := ActionHomomorphism( monS, blocks, OnSets );
+    SymS := Image( pi, monS );
+    ubar := Image( pi, TS );
+    res := [];
+    for X in List( ConjugacyClassesSubgroups( SymS ), Representative ) do
+        if FS_PPart( Size( X ), p ) <> p then continue; fi;
+        g := RepresentativeAction( SymS, SylowSubgroup( X, p ), ubar );
+        if g = fail then continue; fi;
+        X := ConjugateSubgroup( X, g );
+        Hhat := PreImage( pi, X );
+        acts := List( GeneratorsOfGroup( Hhat ), x -> ConjugatorAutomorphismNC( D, x ) );
+        Ks := SubgroupsSolvableGroup( D, rec( actions := acts ) );
+        Ks := Filtered( Ks, K -> ForAll( acts, a -> ImagesSet( a, K ) = K ) );
+        for K in Ks do
+            nat := NaturalHomomorphismByNormalSubgroup( Hhat, K );
+            Q := Image( nat, Hhat );
+            DK := Image( nat, D );
+            if Size( DK ) = 1 then
+                comps := [ Q ];
+            else
+                comps := ComplementClassesRepresentatives( Q, DK );
+            fi;
+            for C in comps do
+                H := PreImage( nat, C );
+                if FS_PPart( Size( H ), p ) <> p then continue; fi;
+                Tsyl := SylowSubgroup( H, p );
+                if IsNormal( H, Tsyl ) then continue; fi;
+                g := RepresentativeAction( monS, Tsyl, TS );
+                if g = fail then continue; fi;
+                H := ConjugateSubgroup( H, g );
+                if ForAny( res, L -> Size( L ) = Size( H ) and RepresentativeAction( monS, L, H ) <> fail ) then continue; fi;
+                if HasStronglyPEmbeddedSubgroup( H, p ) then Add( res, H ); fi;
+            od;
+        od;
+    od;
+    return res;
+end );
+
 InstallGlobalFunction( FS_FrameCandidates, function( S, P, Tbar, opts )
     local p, h, outd, Mbar, q, n, lines, u, orbs, orb, orbit, img, types, frames, candfr, data, t, frame,
           gens, pts, monS, TS, r, i, k, l, perm, cls, D, NT, Ks, K, X, ints, N, H, L, sigma, ncomb, maxcomb;
@@ -384,29 +438,7 @@ InstallGlobalFunction( FS_FrameCandidates, function( S, P, Tbar, opts )
         D := SubgroupNC( Group( monS ), monS{[ 1 .. n ]} );
         monS := Group( monS );
         TS := SubgroupNC( monS, [ FS_FrameToPerm( u, pts ) ] );
-        cls := FS_CandidatesInGroup( monS, p, TS, false, opts );
-        if not FS_LatticeFeasible( monS, p, Size( TS ) ) then
-            # the p-soluble candidates H = K N with K = O_{p'}(H) inside the
-            # diagonal subgroup D and N <= N_mon(T)
-            NT := Normalizer( monS, TS );
-            Ks := SubgroupsSolvableGroup( D, rec( actions := List( GeneratorsOfGroup( TS ), x -> ConjugatorAutomorphismNC( D, x ) ) ) );
-            for K in Ks do
-                if Size( K ) = 1 then continue; fi;
-                X := Normalizer( NT, K );
-                if Size( X ) = Size( TS ) then
-                    ints := [ TS ];
-                else
-                    ints := Concatenation( [ TS, X ], IntermediateSubgroups( X, TS ).subgroups );
-                fi;
-                for N in ints do
-                    if FS_PPart( Size( N ), p ) <> Size( TS ) then continue; fi;
-                    H := ClosureGroup( K, N );
-                    if FS_PPart( Size( H ), p ) <> Size( TS ) then continue; fi;
-                    if ForAny( cls, L -> Size( L ) = Size( H ) and RepresentativeAction( monS, L, H ) <> fail ) then continue; fi;
-                    if HasStronglyPEmbeddedSubgroup( H, p ) then Add( cls, H ); fi;
-                od;
-            od;
-        fi;
+        cls := FS_MonomialCandidates( monS, D, TS, p, n );
         Info( InfoFusionSystems, 2, "frames of type ", types[t], ": ", Length( cls ), " candidates in the monomial group" );
         Add( data.typedata, rec( cands := cls, monS := monS, TS := TS, WS := Normalizer( monS, TS ) ) );
     od;
