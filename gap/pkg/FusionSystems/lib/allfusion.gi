@@ -172,7 +172,7 @@ InstallGlobalFunction( FS_FusionSystemsForBorel, function( S, borel, proto, clas
         fi;
     fi;
     # transport the class candidates to the B-class representatives
-    cand := []; candsrc := [];
+    cand := []; candsrc := []; candmax := [];
     for j in [ 1 .. Length( Pess ) ] do
         if IsIdenticalObj( Pess[j], proto.autreps[ Plabel[j] ] ) and IsOne( Ptheta[j] ) then
             candsrc[j] := classcands[ Plabel[j] ];

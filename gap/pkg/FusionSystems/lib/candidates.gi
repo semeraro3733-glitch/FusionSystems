@@ -448,7 +448,10 @@ BindGlobal( "FS_BorelCompatibleFrameCandidates", function( F0, P, data, maxenoug
     h := FS_AutHandle( P );
     res := [];
     if Length( data.types ) = 0 then return res; fi;
+    # a small generating set of Aut_B(P) (the frame invariance test is run
+    # for every frame)
     AutBgens := FS_AutBGenerators( F0, P );
+    AutBgens := List( SmallGeneratingSet( FS_AutSubgroup( h, AutBgens ) ), x -> FS_AsHom( h.from( x ), P ) );
     for t in [ 1 .. Length( data.types ) ] do
         td := data.typedata[t];
         if Length( td.cands ) = 0 then continue; fi;
