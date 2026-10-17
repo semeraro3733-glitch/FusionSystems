@@ -311,7 +311,7 @@ end;
 #   inv     [ |Z(S)|, class, rank, exponent, |S'|, |Phi(S)| ]
 FS38_Cheap := function( S )
     local Z, cands, seen, seeninv, E, inv, N, q, Q, type, Phi, pairs, C, res, charsE,
-          charS, W, result, pre, a, t, elab, n, T;
+          charS, W, result, pre, a, t, elab, n, T, idx;
     Z := Center( S );
     if Index( S, Z ) <= 9 then return rec( status := "reject", reason := "|S:Z(S)| <= 9" ); fi;
     t := Runtime();
@@ -323,25 +323,26 @@ FS38_Cheap := function( S )
         t := Runtime();
         if Size( E ) <= 3 or IsCyclic( E ) then continue; fi;
         elab := IsElementaryAbelian( E );
-        if not elab then
-            # Aut(E) is not a 3-group: E must have the fingerprint of one of
-            # the few groups of its order with this property (no normalizer)
-            if not FS38_FingerprintTest( E ) then
-                FS38_Timers.pre := FS38_Timers.pre + Runtime() - t; continue;
-            fi;
-        fi;
         FS38_Timers.pre := FS38_Timers.pre + Runtime() - t; t := Runtime();
         FS38_Counts.pre := FS38_Counts.pre + 1;
         N := Normalizer( S, E );
-        if N = E or not IsSubset( E, Centralizer( S, E ) ) then FS38_Timers.type := FS38_Timers.type + Runtime() - t; continue; fi;
-        q := NaturalHomomorphismByNormalSubgroup( N, E );
-        Q := Image( q );
-        type := FS38_SylowType( Q );
+        if N = E then FS38_Timers.type := FS38_Timers.type + Runtime() - t; continue; fi;
+        idx := Index( N, E );
+        # the Sylow type of N/E: for |N:E| <= 9 every type is admissible
+        # (C3, C9, 3^2), so the quotient is only formed for larger index
+        if idx = 3 then
+            type := "C3"; Q := fail;
+        else
+            q := NaturalHomomorphismByNormalSubgroup( N, E );
+            Q := Image( q );
+            type := FS38_SylowType( Q );
+        fi;
         FS38_Timers.type := FS38_Timers.type + Runtime() - t; t := Runtime();
         if type = fail then continue; fi;
         FS38_Counts.type := FS38_Counts.type + 1;
         Phi := FrattiniSubgroup( E );
-        if Index( E, Phi ) < Size( Q )^2 then FS38_Timers.frattini := FS38_Timers.frattini + Runtime() - t; continue; fi;
+        if Index( E, Phi ) < idx^2 then FS38_Timers.frattini := FS38_Timers.frattini + Runtime() - t; continue; fi;
+        if not IsSubset( E, Centralizer( S, E ) ) then FS38_Timers.frattini := FS38_Timers.frattini + Runtime() - t; continue; fi;
         # one representative per S-class from here on
         inv := [ Size( E ), Size( N ), Size( Center( E ) ), Size( Phi ), Size( DerivedSubgroup( E ) ) ];
         if FS_ClassPosition( S, seen, seeninv, E ) <> fail then FS38_Timers.classes := FS38_Timers.classes + Runtime() - t; continue; fi;
@@ -362,7 +363,7 @@ FS38_Cheap := function( S )
             fi;
             FS38_Timers.frattini := FS38_Timers.frattini + Runtime() - t;
             FS38_Counts.kept := FS38_Counts.kept + 1;
-            Add( res, rec( E := E, order := Size( E ), index := Size( Q ), type := type, autorder := Size( GL( n, 3 ) ),
+            Add( res, rec( E := E, order := Size( E ), index := idx, type := type, autorder := Size( GL( n, 3 ) ),
                            elab := true, abelian := true, rank := n, chars := [ E ] ) );
             continue;
         fi;
@@ -388,10 +389,10 @@ FS38_Cheap := function( S )
         # the exact radical test Aut_S(E) meet O_3(Aut(E)) = Inn(E), and
         # Aut(E) insoluble unless Out_S(E) is cyclic [Parker-Semeraro]
         if not FS_RadicalTest( S, E ) then FS38_Timers.radical := FS38_Timers.radical + Runtime() - t; continue; fi;
-        if not IsCyclic( Q ) and IsSolvableGroup( FS_AutHandle( E ).model ) then FS38_Timers.radical := FS38_Timers.radical + Runtime() - t; continue; fi;
+        if type <> "C3" and not IsCyclic( Q ) and IsSolvableGroup( FS_AutHandle( E ).model ) then FS38_Timers.radical := FS38_Timers.radical + Runtime() - t; continue; fi;
         FS38_Timers.radical := FS38_Timers.radical + Runtime() - t;
         FS38_Counts.kept := FS38_Counts.kept + 1;
-        Add( res, rec( E := E, order := Size( E ), index := Size( Q ), type := type, autorder := a.size,
+        Add( res, rec( E := E, order := Size( E ), index := idx, type := type, autorder := a.size,
                        elab := false, abelian := IsAbelian( E ), rank := RankPGroup( E ), chars := charsE ) );
     od;
     if Length( res ) = 0 then return rec( status := "reject", reason := "no candidate essential subgroup" ); fi;
