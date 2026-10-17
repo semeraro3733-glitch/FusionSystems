@@ -75,9 +75,15 @@ current state is summarised in Section~\ref{sec:status}.
 \item Stage 1b (automorphism group tests): run on the $520$ survivors so
   far; $42$ groups survive (Section~\ref{sec:survivors}).
 \item Look-up tables for $\GL_n(3)$: complete for $n\le 4$, and for $n=5,6$, $T\cong3^2$ (Section~\ref{sec:lookup}).
-\item Stage 2 (fusion systems group by group): running through the $42$
-  survivors in order of difficulty (Section~\ref{sec:survivors} lists the
-  status of each group); the seven systems on \texttt{SmallGroup(6561,2221)}
+\item Stage 2 (fusion systems group by group): complete for the $42$
+  survivors of Stage 1b found so far (Section~\ref{sec:survivors} lists the
+  result for each group): $15$ fusion systems in all, on the five maximal
+  class groups $2221$ ($7$), $2223$ ($2$), $2224$ ($2$), $2225$ ($1$),
+  $2226$ ($3$), and none on the other $37$ groups; all enumerations of
+  automizer candidates were complete.  The two Sylow $3$-subgroups of
+  simple groups not identified in the library ($\Alt(18)$, $\PSp_4(9)$) are
+  being treated with the new $\GL_6(3)$ table.  The seven systems on
+  \texttt{SmallGroup(6561,2221)}
   are identified (three of them are the fusion systems of $\PSL_3(163)$,
   $\PSU_3(647)$, of their extensions by an outer automorphism, and of
   ${}^3D_4(53)$; the other four are candidates for exotic systems), see
@@ -781,8 +787,11 @@ candidates of order $3^5$: \texttt{SmallGroup(6561,}$n$\texttt{)} for
 $n=1111$ ($3$ classes of $E$), $1115$ ($3$), $1167$ ($5$), $1176$ ($9$),
 $1225$ ($9$), $1229$ ($9$).  In the first (invalidated) run none of them
 carried a saturated fusion system with $O_3(\F)=1$ and $O^3(\F)=\F$ ($44$
-to $143$ seconds each); \textcolor{red}{they are being recomputed with the
-corrected pipeline (see the table of Section~\ref{sec:survivors}).}
+to $143$ seconds each); the recomputation with the corrected pipeline
+confirms this ($7$ to $25$ minutes each: the first version of Stage 1a
+passed several copies of each $S$-class of candidates to Stage 2, which
+multiplied the automizer assignments to be tested; with the copies merged,
+$1229$ takes $7$ minutes).
 
 \subsection{Groups whose only proto-essential subgroups are $3^5$ with $\Out_S(E)\cong C_9$}
 \label{sec:tierC9}
