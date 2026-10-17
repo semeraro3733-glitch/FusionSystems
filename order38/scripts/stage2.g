@@ -15,7 +15,7 @@ FS38_SubgroupDesc := function( E )
     if Size( E ) = 27 and Exponent( E ) = 3 then return "3^{1+2}_+"; fi;
     if Size( E ) = 27 then return "3^{1+2}_-"; fi;
     s := Concatenation( "3^", String( LogInt( Size( E ), 3 ) ), " (|Z|=", String( Size( Center( E ) ) ), ", cl ", String( NilpotencyClassOfGroup( E ) ), ", exp ", String( Exponent( E ) ), ")" );
-    if Size( E ) <= 2187 then s := Concatenation( s, " #", String( IdGroup( E )[2] ) ); fi;
+    if Size( E ) <= 729 then s := Concatenation( s, " #", String( IdGroup( E )[2] ) ); fi;
     return s;
 end;
 
@@ -46,18 +46,25 @@ FS38_Describe := function( F )
 end;
 
 # run AllFusionSystems on SmallGroup( 6561, id ) (or a given group), log to file
+FS38_DescLine := function( d )
+    return Concatenation( "|Out_F(S)| = ", String( d.OutFS ), " (", d.OutFSdesc, "); essentials: ",
+              JoinStringsWithSeparator( List( d.ess, e -> Concatenation( e.desc, " [N:E=", String( e.index ), ", Out_F(E) = ", e.OutFEdesc, " of order ", String( e.OutFE ), "]" ) ), "; " ) );
+end;
+
 FS38_Stage2 := function( S, name, logfile, opts )
-    local t, L, F, d, res, cheap;
-    PrintTo( logfile, "# Stage 2 for ", name, "\n" );
+    local t, L, F, d, res, out;
+    out := OutputTextFile( logfile, false ); SetPrintFormattingStatus( out, false );
+    AppendTo( out, "# Stage 2 for ", name, "\n" );
     t := Runtime();
     L := AllFusionSystems( S, opts );
-    AppendTo( logfile, "# ", Length( L ), " fusion systems (", Runtime() - t, " ms)\n" );
+    AppendTo( out, "# ", Length( L ), " fusion systems (", Runtime() - t, " ms)\n" );
     res := [];
     for F in L do
         d := FS38_Describe( F );
         Add( res, d );
-        AppendTo( logfile, "F: |Out_F(S)| = ", d.OutFS, " (", d.OutFSdesc, "); essentials: ",
-                  JoinStringsWithSeparator( List( d.ess, e -> Concatenation( e.desc, " [N:E=", String( e.index ), ", Out_F(E) = ", e.OutFEdesc, " of order ", String( e.OutFE ), "]" ) ), "; " ), "\n" );
+        AppendTo( out, "F: ", FS38_DescLine( d ), "\n" );
     od;
+    AppendTo( out, "DONE\n" );
+    CloseStream( out );
     return rec( systems := L, descriptions := res, time := Runtime() - t );
 end;
