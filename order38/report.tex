@@ -74,7 +74,7 @@ current state is summarised in Section~\ref{sec:status}.
   at most $3016$).
 \item Stage 1b (automorphism group tests): run on the $520$ survivors so
   far; $42$ groups survive (Section~\ref{sec:survivors}).
-\item Look-up tables for $\GL_n(3)$: complete for $n\le 4$, and for $n=5$, $T\cong3^2$ (Section~\ref{sec:lookup}).
+\item Look-up tables for $\GL_n(3)$: complete for $n\le 4$, and for $n=5,6$, $T\cong3^2$ (Section~\ref{sec:lookup}).
 \item Stage 2 (fusion systems group by group): running through the $42$
   survivors in order of difficulty (Section~\ref{sec:survivors} lists the
   status of each group); the seven systems on \texttt{SmallGroup(6561,2221)}
@@ -336,12 +336,13 @@ $3^7$ (ranks $4$ and $5$, $|N_S(E):E|=3$), one elementary abelian
 $3^6$ with $\Out_S(E)\cong3^2$ and two $S$-classes of non-abelian
 subgroups of order $3^6$ with $|N_S(E):E|=3$, $|\Aut(S)|=2^5\cdot3^{11}$;
 for $\Syl_3(\PSp_4(9))$ one elementary abelian $3^6$ and one non-abelian
-subgroup of order $3^6$, both with $\Out_S(E)\cong3^2$, and seven
-$S$-classes of elementary abelian $3^4$ with $\Out_S(E)\cong3^2$,
+subgroup of order $3^6$, both with $\Out_S(E)\cong3^2$, and one $S$-class
+of elementary abelian $3^4$ with $\Out_S(E)\cong3^2$,
 $|\Aut(S)|=2^7\cdot3^{12}$.  The elementary abelian $3^6$ with
-$\Out_S(E)\cong3^2$ requires the automizer candidates in $\GL_6(3)$, for
-which no look-up table exists yet (the perfect subgroup method of the
-package is complete here since $\Out_S(E)$ is not cyclic); these two
+$\Out_S(E)\cong3^2$ requires the automizer candidates in $\GL_6(3)$
+(Section~\ref{sec:lookup}: the Sylow subgroup of $\Alt(18)$ falls in the
+class of the permutation module, with $10$ candidates, that of
+$\PSp_4(9)$ in the class of the irreducible module, with $39$); the two
 groups are treated at the end of Stage 2.
 
 \section{Look-up tables: subgroups of $\GL_n(3)$ with a strongly $3$-embedded subgroup}\label{sec:lookup}
@@ -400,6 +401,79 @@ which uses the table to discard candidates, was restarted a second time
 on 17 October 2026 (evening) with the corrected table.]}
 \input{tables/gl5_3x3.tex}
 
+\paragraph{$\GL_6(3)$, $T\cong 3^2$.}  The same method gives the table for
+$n=6$ (\texttt{scripts/gl6direct.g}, data in
+\texttt{data/gl6\_3x3\_table.g}; it is needed for the Sylow $3$-subgroups of
+$\Alt(18)$ and $\PSp_4(9)$, whose elementary abelian proto-essential
+subgroups $3^6$ have $\Out_S(E)\cong3^2$).  Here $7\mid|\GL_6(3)|$, so
+$\PSL_3(4)$ is not excluded a priori.  Let $Y$ be the perfect residuum of
+a candidate $H$ and $Q=O_{3'}(Y)$.  Then $Q$ is a $2$-group ($5$, $7$ and
+$13$ divide $|\GL_6(3)|$ only once and $11^2$ exactly, so a non-trivial
+$\{5,7,11,13\}$-part of $Q$ would be centralised by $Y$, hence central in
+the perfect group $Y$, hence a quotient of the Schur multiplier of
+$\Alt(6)$, $\PSL_3(4)$ or $M_{11}$, which have no such primes).  If $Q$ is
+not central in $Y$, consider $E_0=\Omega_1(\Z(Q))$: it is diagonalisable
+and $Y$ permutes its at most six weight spaces; $\PSL_3(4)$ and $M_{11}$
+act trivially on at most six points and $\Alt(6)$ trivially or
+transitively.  In the trivial case $E_0$ acts by scalars on
+$Y$-invariant subspaces, so $[E_0,Y]=1$ and $E_0\le\Z(Y)\cap Y'$, i.e.\
+$|E_0|\le2$ and $\Z(Q)$ is cyclic; a $2$-group with cyclic centre on
+which $Y$ acts non-trivially needs a chief factor which is a faithful
+$\mathbb{F}_2$-module of $Y/Q$, of dimension $\ge4$ ($\Alt(6)$), $\ge8$
+($\PSL_3(4)$), $\ge10$ ($M_{11}$); the Sylow $2$-subgroup of $\GL_6(3)$
+($\mathrm{SD}_{16}\wr C_2\times\mathrm{SD}_{16}$, of order $2^{13}$) has no
+section of rank $8$, and for $\Alt(6)$ every irreducible constituent of
+$Q$ on $\mathbb{F}_3^6$ is faithful, of dimension $2$ or $4$ (a $2$-group has
+no irreducible $\mathbb{F}_3$-module of dimension $6$), which forces $Q$
+into $\GL_2(3)$ (too small) or $\GL_4(3)$ with a faithful irreducible
+module, i.e.\ $Q\supseteq 2^{1+4}_\pm$ with $\Alt(6)\le\Out(Q)$, impossible
+as $\Out(2^{1+4}_\pm)\cong O_4^\pm(2)$.  In the transitive case $Y$ lies in
+the monomial group $2^6{:}S_6$ and $Y=2^5{:}\Alt(6)$ (the even sign
+changes, a uniserial module $4/1$ for $\Alt(6)$, so $2^5{:}\Alt(6)$ is
+perfect).  If $Q$ is central, $Y$ is $\Alt(6)$, $\SL_2(9)$, $M_{11}$ or a
+cover of $\PSL_3(4)$ with a faithful $6$-dimensional module over
+$\mathbb{F}_3$.  The faithful $6$-dimensional modules are: for $\Alt(6)$
+the four modules with composition factors $4,1,1$ ($4+1+1$, $(4/1)+1$,
+$(1/4)+1$, the uniserial permutation module $1/4/1$; as
+$\mathrm{Ext}^1_{\Alt(6)}(\mathbb{F}_3,4)$ is one-dimensional and
+$\mathrm{Ext}^1(\mathbb{F}_3,\mathbb{F}_3)=0$ there are no others) and the
+irreducible $6$ ($3\oplus3^\sigma$ over $\mathbb{F}_9$, the symmetric square
+of the natural module of $\SL_2(9)$); for $\SL_2(9)$ only $4+1+1$; for
+$M_{11}$ the modules $5+1$, $5^*+1$ and two non-split extensions
+($H^1(M_{11},5)$ is one-dimensional for one of the two dual
+$5$-dimensional modules; the non-split modules are the $6$-dimensional
+submodule and quotient of the permutation module on $12$ points); for the
+covers of $\PSL_3(4)$ (from the library of perfect groups) exactly one:
+$2.\PSL_3(4)$ has a unique irreducible $6$-dimensional module over
+$\mathbb{F}_3$ (the reduction of the $6$-dimensional representation of
+$6.\PSL_3(4)$), and the larger covers have no faithful module of dimension
+$\le6$.  Together with $2^5{:}\Alt(6)$ this gives $12$ classes of residua
+and, from the subgroups between $Y$ and $N_{\GL_6(3)}(Y)$, $644$ candidates
+in $10$ classes of $T$:
+\begin{center}
+\begin{tabular}{llr}
+\toprule
+class of $T$ (by the residua it carries) & residua & candidates\\
+\midrule
+$\Alt(6)$ on $4+1+1$ & $\Alt(6)$ & 238\\
+$\SL_2(9)$ on $4+1+1$ & $\SL_2(9)$ & 311\\
+$\Alt(6)$ on $(4/1)+1$ & $\Alt(6)$ & 16\\
+$\Alt(6)$ on $(1/4)+1$ & $\Alt(6)$ & 16\\
+$\Alt(6)$ on the permutation module $1/4/1$ & $\Alt(6)$, $2^5{:}\Alt(6)$ & 10\\
+$\Alt(6)$ on the irreducible $6$ & $\Alt(6)$, $2.\PSL_3(4)$ & 39\\
+$M_{11}$ on $5+1$, on $5^*+1$ & $M_{11}$ & 5, 5\\
+$M_{11}$ on the two non-split modules & $M_{11}$ & 2, 2\\
+\bottomrule
+\end{tabular}
+\end{center}
+(The $238$ and $311$ candidates of the first two classes are the groups
+$H$ with $Y\le H\le N(Y)$ where $N(Y)/Y$ has order $384$ resp.\ $768$: the
+automorphisms of $Y$ realised in $\GL_4(3)$ times a $2$-subgroup of the
+$\GL_2(3)$ on the trivial summand.)  The classes of $T$ are compared with
+$\Aut_S(E)$ through the isomorphism type of the $\mathbb{F}_3T$-module
+$E$ (\texttt{MTX.IsomorphismModules} over the $48$ generating pairs), as the
+backtrack conjugacy test in $\GL_6(3)$ is too slow.
+
 \paragraph{Completeness of the automizer candidates.}  For an essential
 subgroup $E$ the candidates for $\Out_\F(E)$ are complete in the following
 cases: $|\Out(E)|\le 5\cdot10^5$ (or $\Out(E)$ soluble of order at most
@@ -424,12 +498,16 @@ subgroup lattice, which is always the case for the non-abelian
 proto-essential subgroups met so far (where $G/\mathrm{Rad}(G)$ is a
 subgroup of $\GL_d(3)$, $d\le5$, such as $\PSL_3(3)$); a soluble $\Out(E)$
 with non-cyclic $\Out_S(E)$ has no candidates at all.  The only remaining
-incomplete case is an elementary abelian $E$ of rank $5$, $6$ or $7$ with
+incomplete cases are an elementary abelian $E$ of rank $5$, $6$ or $7$ with
 $\Out_S(E)$ cyclic and $\Out(E)=\GL_n(3)$ (where $G/\mathrm{Rad}(G)$ is
 $\PGL_n(3)$ itself), where the $3$-soluble candidates are only found
-inside the monomial groups of the $T$-invariant frames; the package
-records every incomplete enumeration in \texttt{FS\_Diagnostics}, and the
-Stage 2 logs and tables mark the affected groups.  Results for groups whose only proto-essential
+inside the monomial groups of the $T$-invariant frames (and for $n=5$,
+$\Out_S(E)\cong C_9$ there are none at all, see above), and an elementary
+abelian $E$ of rank $6$ or $7$ with non-cyclic $\Out_S(E)$ other than
+$T\cong3^2$ for $n=6$ (no table yet; $|\GL_n(3)|$ is beyond the perfect
+subgroup method); the package records every incomplete enumeration in
+\texttt{FS\_Diagnostics}, and the Stage 2 logs and tables mark the
+affected groups.  Results for groups whose only proto-essential
 subgroups of this kind are elementary abelian of rank at least $5$ with
 cyclic $\Out_S(E)$ are therefore marked ``complete up to the soluble
 candidates'' below; such groups are, by the ordering of Stage 2, treated
