@@ -30,16 +30,24 @@ FS38_OutDesc := function( A, E )
 end;
 
 FS38_Describe := function( F )
-    local S, r, i, E, hE, A, cpl;
+    local S, r, i, E, hE, A, cpl, comps, c;
     S := F!.S;
     r := rec( OutFS := OutFSOrder( F ), OutFSdesc := "", ess := [] );
     cpl := FS_ComplementData( F );
     if Size( cpl.model ) <= 2000 then r.OutFSdesc := StructureDescription( cpl.model ); else r.OutFSdesc := Concatenation( "order ", String( Size( cpl.model ) ) ); fi;
+    # the essential subgroups up to F-conjugacy (the stored list may contain
+    # several S-class representatives of one F-class); nS is the number of
+    # S-classes in the F-class
+    comps := [];
     for i in [ 1 .. Length( F!.ess ) ] do
         E := F!.ess[i];
+        c := Set( FS_ComponentOf( F, FS_NodeOf( F, E )[1] ) );
+        if c in comps then continue; fi;
+        Add( comps, c );
         hE := FS_AutHandle( E );
         A := FS_AutSubgroup( hE, Concatenation( FS_AutSGenerators( F, E ), F!.essauts[i] ) );
         Add( r.ess, rec( order := Size( E ), desc := FS38_SubgroupDesc( E ), index := Index( Normalizer( S, E ), E ),
+                         nS := Length( c ),
                          OutFE := Size( A ) / Index( E, Center( E ) ), OutFEdesc := FS38_OutDesc( A, E ) ) );
     od;
     return r;
@@ -48,7 +56,7 @@ end;
 # run AllFusionSystems on SmallGroup( 6561, id ) (or a given group), log to file
 FS38_DescLine := function( d )
     return Concatenation( "|Out_F(S)| = ", String( d.OutFS ), " (", d.OutFSdesc, "); essentials: ",
-              JoinStringsWithSeparator( List( d.ess, e -> Concatenation( e.desc, " [N:E=", String( e.index ), ", Out_F(E) = ", e.OutFEdesc, " of order ", String( e.OutFE ), "]" ) ), "; " ) );
+              JoinStringsWithSeparator( List( d.ess, e -> Concatenation( e.desc, " [", String( e.nS ), " S-class(es), N:E=", String( e.index ), ", Out_F(E) = ", e.OutFEdesc, " of order ", String( e.OutFE ), "]" ) ), "; " ) );
 end;
 
 FS38_Stage2 := function( S, name, logfile, opts )

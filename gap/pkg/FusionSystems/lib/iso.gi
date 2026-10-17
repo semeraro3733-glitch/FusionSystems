@@ -21,6 +21,24 @@
 
 #############################################################################
 ##
+#F  FS_EssentialClassOrders( <F> )
+##
+##  The collected list of the orders of the F-conjugacy classes of essential
+##  subgroups of F (an isomorphism invariant; the stored list F!.ess may
+##  contain several S-class representatives of the same F-class).
+##
+InstallGlobalFunction( FS_EssentialClassOrders, function( F )
+    local comps, E, c;
+    comps := [];
+    for E in F!.ess do
+        c := Set( FS_ComponentOf( F, FS_NodeOf( F, E )[1] ) );
+        if not c in comps then Add( comps, c ); fi;
+    od;
+    return Collected( List( comps, c -> Size( F!.nodes[ c[1] ].rep ) ) );
+end );
+
+#############################################################################
+##
 #F  FS_IsContainedIn( <F1>, <F2>, <alpha> )
 ##
 ##  alpha: S1 -> S2 an isomorphism; is alpha(F1) contained in F2 ?
@@ -121,11 +139,9 @@ InstallGlobalFunction( FS_IsomorphismFusionSystemsSameS, function( F1, F2 )
     if not IsIdenticalObj( S, F2!.S ) then
         Error( "the fusion systems must be defined on the same group" );
     fi;
-    if Length( F1!.ess ) <> Length( F2!.ess ) then
-        # the numbers of essential classes could still agree if the lists
-        # contain F-conjugate subgroups; we do not try to be clever here
-        if Set( List( F1!.ess, Size ) ) <> Set( List( F2!.ess, Size ) ) then return fail; fi;
-    fi;
+    # the orders of the F-classes of essential subgroups (the stored lists
+    # may contain F-conjugate representatives)
+    if FS_EssentialClassOrders( F1 ) <> FS_EssentialClassOrders( F2 ) then return fail; fi;
     h := FS_AutHandle( S );
     A1 := FS_ComplementData( F1 ).autF;
     A2 := FS_ComplementData( F2 ).autF;
@@ -191,7 +207,7 @@ InstallMethod( IsomorphismFusionSystems, [ IsFusionSystem, IsFusionSystem ], fun
     S1 := F1!.S; S2 := F2!.S;
     if F1!.p <> F2!.p or Size( S1 ) <> Size( S2 ) then return fail; fi;
     if Size( FS_ComplementData( F1 ).autF ) <> Size( FS_ComplementData( F2 ).autF ) then return fail; fi;
-    if Collected( List( F1!.ess, Size ) ) <> Collected( List( F2!.ess, Size ) ) then return fail; fi;
+    if FS_EssentialClassOrders( F1 ) <> FS_EssentialClassOrders( F2 ) then return fail; fi;
     if IsIdenticalObj( S1, S2 ) then
         alpha := FS_IsomorphismFusionSystemsSameS( F1, F2 );
         if alpha = fail then return fail; fi;

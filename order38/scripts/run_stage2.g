@@ -1,5 +1,5 @@
 # Stage 2 over the Stage 1b survivors in order of difficulty.
-#   gap -c 'Read("run_stage2.g"); FS38_RunStage2All( maxElab );'
+#   gap -c 'Read("run_stage2.g"); FS38_RunStage2All( maxElab[, skiplist] );'
 # Reads data/stage1b_survivors.txt (analyze1b.py), treats the groups whose
 # largest elementary abelian proto-essential subgroup has order <= maxElab,
 # skips the ids with an existing logs/stage2_<id>.log ending in DONE, and
@@ -12,8 +12,11 @@ FS38_Stage2Done := function( id )
     s := StringFile( f );
     return s <> fail and PositionSublist( s, "DONE" ) <> fail;
 end;
-FS38_RunStage2All := function( maxElab )
-    local f, line, parts, id, S, r, out, elab, m, protos, t;
+FS38_RunStage2All := function( maxElab, arg... )
+    local f, line, parts, id, S, r, out, elab, m, protos, t, skip;
+    # optional second argument: a list of ids to skip (deferred groups)
+    skip := [];
+    if Length( arg ) > 0 then skip := arg[1]; fi;
     f := InputTextFile( "/home/user/FusionSystems/order38/data/stage1b_survivors.txt" );
     line := ReadLine( f );
     while line <> fail do
@@ -27,7 +30,7 @@ FS38_RunStage2All := function( maxElab )
             protos := SplitString( Filtered( m, c -> not c in "[]" ), "," );
             if Length( protos ) >= 3 and protos[3] = "true" and Int( protos[1] ) > elab then elab := Int( protos[1] ); fi;
         od;
-        if elab > maxElab then continue; fi;
+        if elab > maxElab or id in skip then continue; fi;
         if FS38_Stage2Done( id ) then continue; fi;
         S := SmallGroup( 6561, id );
         t := Runtime();
