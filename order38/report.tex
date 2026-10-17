@@ -184,8 +184,8 @@ the set of covering pairs is contained in the stability group of any
 maximal chain in the set, so the argument of (d) applies.)  The tests are
 applied in this order, so that $\Aut(E)$ (computed with the GAP package
 \texttt{autpgrp}) is only needed for the candidates surviving (a)--(d);
-the first part of (e) already discards almost all of them, since almost
-all groups of order $3^7$ have a $3$-group of automorphisms.  Indeed, with
+the first part of (e) discards a good part of them, since many groups of
+order $3^7$ have a $3$-group of automorphisms.  With
 \texttt{autpgrp} we computed the automorphism groups of all groups of order
 $3^k$, $k\le7$ (\texttt{data/aut3table.g}):
 \begin{center}
@@ -194,19 +194,15 @@ $3^k$, $k\le7$ (\texttt{data/aut3table.g}):
 $|E|$ & $3^3$ & $3^4$ & $3^5$ & $3^6$ & $3^7$\\
 \midrule
 groups & 5 & 15 & 67 & 504 & 9310\\
-$\Aut(E)$ not a $3$-group & 3 & 5 & 8 & 17 & 37\\
+$\Aut(E)$ a $3$-group & 0 & 0 & 0 & 30 & 2119\\
+$\Aut(E)$ insoluble & 3 & 5 & 8 & 17 & 37\\
 \bottomrule
 \end{tabular}
 \end{center}
-\textcolor{red}{[The counts in this table are being recomputed: the first
-version of the computation used \texttt{autpgrp}'s \texttt{glOrder}, which
-is $1$ whenever the action of $\Aut(E)$ on $E/\Phifr(E)$ is soluble, so it
-counted the groups with insoluble automorphism group instead.  All
-computations downstream of Stage 1a are being redone with the corrected
-criterion $|\Aut(E)|$ a power of $3$; the results reported below for the
-groups 2225, 2025, 2029, 2193, 2021, 2205 and the $3^4$ tier are therefore
-provisional, while the seven systems on 2221 were found by the package
-without the Stage 1a tests and stand.]}
+(A first version of this computation used \texttt{autpgrp}'s
+\texttt{glOrder}, which is $1$ whenever the action of $\Aut(E)$ on
+$E/\Phifr(E)$ is soluble, and so counted the groups with insoluble
+automorphism group; the sweep was restarted with the corrected criterion.)
 A candidate which is not elementary abelian must therefore be isomorphic to
 one of the groups with $|\Aut(E)|$ not a power of $3$; this is tested first through a cheap
 isomorphism invariant (the orders of the centre, Frattini and derived
