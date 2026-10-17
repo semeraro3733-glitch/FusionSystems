@@ -113,9 +113,38 @@ FS38_RequiredDivisor := function( type )
     return 1;
 end;
 
+# The look-up tables for GL_n(3), n <= 4 (gltables.g): the classes of
+# admissible T with at least one candidate automizer.  For an elementary
+# abelian candidate E of rank n <= 4 the group Aut_S(E) <= GL_n(3) must be
+# conjugate to one of them.
+FS38_GLAdmissible := [];
+FS38_GLGroups := [];
+for n in [ 2 .. 4 ] do
+    if IsExistingFile( Concatenation( "/home/user/FusionSystems/order38/data/gl", String( n ), "_table.g" ) ) then
+        Read( Concatenation( "/home/user/FusionSystems/order38/data/gl", String( n ), "_table.g" ) );
+        FS38_GLGroups[n] := GL( n, 3 );
+        FS38_GLAdmissible[n] := List( Filtered( ValueGlobal( Concatenation( "GLTABLE_", String( n ) ) ), r -> Length( r.cands ) > 0 ),
+                                      r -> Group( List( r.Tmats, m -> m * One( GF( 3 ) ) ) ) );
+    fi;
+od;
+
+# Aut_S(E) as a matrix group on the elementary abelian group E
+FS38_AutSMatrices := function( S, E, N )
+    local pcgs, mats, g;
+    pcgs := Pcgs( E );
+    mats := [];
+    for g in GeneratorsOfGroup( N ) do
+        Add( mats, List( pcgs, x -> ExponentsOfPcElement( pcgs, x^g ) ) * One( GF( 3 ) ) );
+    od;
+    return Group( mats, IdentityMat( Length( pcgs ), GF( 3 ) ) );
+end;
+
+# counters: candidates entering each stage
+FS38_Counts := rec( cands := 0, pre := 0, classes := 0, type := 0, frattini := 0, chain := 0, elab := 0, aut := 0, radical := 0, kept := 0 );
+
 # timers for the stages of FS38_Cheap (ms)
 FS38_Timers := rec( cands := 0, pre := 0, classes := 0, type := 0, frattini := 0, chain := 0, aut := 0, radical := 0, charS := 0 );
-FS38_ResetTimers := function() local n; for n in RecNames( FS38_Timers ) do FS38_Timers.( n ) := 0; od; end;
+FS38_ResetTimers := function() local n; for n in RecNames( FS38_Timers ) do FS38_Timers.( n ) := 0; od; for n in RecNames( FS38_Counts ) do FS38_Counts.( n ) := 0; od; end;
 
 # invariants used to distinguish S-classes of subgroups
 FS38_Inv := function( S, E )
@@ -163,7 +192,7 @@ end;
 #   inv     [ |Z(S)|, class, rank, exponent, |S'|, |Phi(S)| ]
 FS38_Cheap := function( S )
     local Z, cands, seen, seeninv, E, inv, N, q, Q, type, Phi, pairs, C, res, charsE,
-          charS, W, result, pre, a, t;
+          charS, W, result, pre, a, t, elab, n, T;
     Z := Center( S );
     if Index( S, Z ) <= 9 then return rec( status := "reject", reason := "|S:Z(S)| <= 9" ); fi;
     t := Runtime();
@@ -171,13 +200,15 @@ FS38_Cheap := function( S )
     FS38_Timers.cands := FS38_Timers.cands + Runtime() - t; t := Runtime();
     # cheap tests first (normalizer, centric), then the S-class test
     pre := [];
+    FS38_Counts.cands := FS38_Counts.cands + Length( cands );
     for E in cands do
+        if not IsSubset( E, Centralizer( S, E ) ) then continue; fi;
         N := Normalizer( S, E );
         if N = E then continue; fi;
-        if not IsSubset( E, Centralizer( S, E ) ) then continue; fi;
         Add( pre, [ E, N ] );
     od;
     FS38_Timers.pre := FS38_Timers.pre + Runtime() - t;
+    FS38_Counts.pre := FS38_Counts.pre + Length( pre );
     seen := []; seeninv := []; res := [];
     for C in pre do
         E := C[1]; N := C[2];
@@ -186,22 +217,45 @@ FS38_Cheap := function( S )
         if FS_ClassPosition( S, seen, seeninv, E ) <> fail then FS38_Timers.classes := FS38_Timers.classes + Runtime() - t; continue; fi;
         Add( seen, E ); Add( seeninv, inv );
         FS38_Timers.classes := FS38_Timers.classes + Runtime() - t; t := Runtime();
+        FS38_Counts.classes := FS38_Counts.classes + 1;
         q := NaturalHomomorphismByNormalSubgroup( N, E );
         Q := Image( q );
         type := FS38_SylowType( Q );
         FS38_Timers.type := FS38_Timers.type + Runtime() - t; t := Runtime();
         if type = fail then continue; fi;
+        FS38_Counts.type := FS38_Counts.type + 1;
         Phi := FrattiniSubgroup( E );
         if Index( E, Phi ) < Size( Q )^2 then continue; fi;
+        elab := Size( Phi ) = 1;
+        if elab then
+            # Aut(E) = GL_n(3) is known; the table test for n <= 4
+            FS38_Counts.elab := FS38_Counts.elab + 1;
+            n := RankPGroup( E );
+            if IsBound( FS38_GLAdmissible[n] ) then
+                T := FS38_AutSMatrices( S, E, N );
+                if not ForAny( FS38_GLAdmissible[n], T0 -> Size( T0 ) = Size( T ) and IsConjugate( FS38_GLGroups[n], T0, T ) ) then
+                    FS38_Timers.frattini := FS38_Timers.frattini + Runtime() - t; continue;
+                fi;
+            elif Size( GL( n, 3 ) ) mod FS38_RequiredDivisor( type ) <> 0 then
+                continue;
+            fi;
+            FS38_Timers.frattini := FS38_Timers.frattini + Runtime() - t;
+            FS38_Counts.kept := FS38_Counts.kept + 1;
+            Add( res, rec( E := E, order := Size( E ), index := Size( Q ), type := type, autorder := Size( GL( n, 3 ) ),
+                           elab := true, abelian := true, rank := n, chars := [ E ] ) );
+            continue;
+        fi;
         # the Frattini quotient test, then the finer chain of characteristic subgroups
         C := FS38_StabilityKernel( N, [ [ Phi, E ] ] );
         FS38_Timers.frattini := FS38_Timers.frattini + Runtime() - t; t := Runtime();
         if not IsSubset( E, C ) then continue; fi;
+        FS38_Counts.frattini := FS38_Counts.frattini + 1;
         charsE := FS38_CharList( E );
         pairs := FS38_CoveringPairs( E, charsE );
         C := FS38_StabilityKernel( N, pairs );
         FS38_Timers.chain := FS38_Timers.chain + Runtime() - t; t := Runtime();
         if not IsSubset( E, C ) then continue; fi;
+        FS38_Counts.chain := FS38_Counts.chain + 1;
         # (R2e) an essential subgroup has a 3'-automorphism (Out_S(E) is not
         # normal in Out_F(E)): Aut(E) must not be a 3-group, and the simple
         # section forced by a non-cyclic Out_S(E) must fit into Out(E)
@@ -209,13 +263,15 @@ FS38_Cheap := function( S )
         FS38_Timers.aut := FS38_Timers.aut + Runtime() - t; t := Runtime();
         if a.glOrder = 1 or SmallestRootInt( a.glOrder ) = 3 then continue; fi;
         if a.size mod FS38_RequiredDivisor( type ) <> 0 then continue; fi;
+        FS38_Counts.aut := FS38_Counts.aut + 1;
         # the exact radical test Aut_S(E) meet O_3(Aut(E)) = Inn(E), and
         # Aut(E) insoluble unless Out_S(E) is cyclic [Parker-Semeraro]
         if not FS_RadicalTest( S, E ) then FS38_Timers.radical := FS38_Timers.radical + Runtime() - t; continue; fi;
         if not IsCyclic( Q ) and IsSolvableGroup( FS_AutHandle( E ).model ) then FS38_Timers.radical := FS38_Timers.radical + Runtime() - t; continue; fi;
         FS38_Timers.radical := FS38_Timers.radical + Runtime() - t;
+        FS38_Counts.kept := FS38_Counts.kept + 1;
         Add( res, rec( E := E, order := Size( E ), index := Size( Q ), type := type, autorder := a.size,
-                       elab := IsElementaryAbelian( E ), abelian := IsAbelian( E ), rank := RankPGroup( E ), chars := charsE ) );
+                       elab := false, abelian := IsAbelian( E ), rank := RankPGroup( E ), chars := charsE ) );
     od;
     if Length( res ) = 0 then return rec( status := "reject", reason := "no candidate essential subgroup" ); fi;
     # (R3) visibly characteristic subgroups
