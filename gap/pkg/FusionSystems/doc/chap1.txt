@@ -71,11 +71,17 @@
   system  [22XF_S(B)[122X,  and  the  conditions hold. It therefore suffices to run the
   test  over  the  [22XF[122X-classes  of  the  [22XS[122X-centric  subgroups  of  the essential
   subgroups.  These  are  found  from  the  subgroup  lattices  of  the groups
-  [22XE_i/Z(E_i)[122X,  their [22XF[122X-classes and automizers from the lazy graph. This is how
-  the  package  avoids  the  fusion  graph  of [PS21], whose construction (the
-  subgroup  lattice  of  [22XS[122X  up  to  [22XB[122X-conjugacy and the [22XAut_F(E)[122X-orbits of all
-  subgroups  of  all  essential  subgroups)  is the most expensive part of the
-  original implementation.[133X
+  [22XE_i/Z(E_i)[122X,  their  [22XF[122X-classes and automizers from the lazy graph. A class is
+  only  expanded  as  far as it is needed: the test abandons the [22XF[122X-class of an
+  essential  subgroup, or of an [22XS[122X-centric subgroup of one, at the first member
+  which  is  not  [22XS[122X-centric  or has a larger normalizer in [22XS[122X, as such a member
+  already  decides the condition in question. (For a candidate system which is
+  far  from  saturated  such  a  class  may  be  enormous, for instance when a
+  subgroup of an abelian essential subgroup with a large automizer lies in it,
+  while its first bad member is found at once.) This is how the package avoids
+  the fusion graph of [PS21], whose construction (the subgroup lattice of [22XS[122X up
+  to  [22XB[122X-conjugacy  and  the  [22XAut_F(E)[122X-orbits of all subgroups of all essential
+  subgroups) is the most expensive part of the original implementation.[133X
   
   [33X[0;0Y[13XClassification.[113X [2XAllFusionSystems[102X ([14X3.2-1[114X) follows [PS21, Section 4]: for each
   [22Xp'[122X-subgroup  [22XK[122X  of  [22XAut(S)[122X  up  to  conjugacy  ([22XAut_F(S)  =  Inn(S) ⋊ K[122X) the

@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.25 (TeX Live 2023/Debian) (preloaded format=pdflatex 2026.10.7)  16 OCT 2026 19:04
+This is pdfTeX, Version 3.141592653-2.6-1.40.25 (TeX Live 2023/Debian) (preloaded format=pdflatex 2026.10.7)  17 OCT 2026 06:25
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -482,113 +482,113 @@ pdfTeX warning (ext4): destination with the same identifier (name{L.X78B9FA547D
 3B76E6}) has been already used, duplicate ignored
 <to be read again> 
                    \relax 
-l.188 \hyperdef{L}{X78B9FA547D3B76E6}{}
+l.192 \hyperdef{L}{X78B9FA547D3B76E6}{}
                                        
-Underfull \hbox (badness 10000) in paragraph at lines 199--202
+Underfull \hbox (badness 10000) in paragraph at lines 203--206
 
  []
 
 LaTeX Font Info:    Font shape `T1/cmtt/bx/n' in size <10> not available
-(Font)              Font shape `T1/cmtt/m/n' tried instead on input line 206.
+(Font)              Font shape `T1/cmtt/m/n' tried instead on input line 210.
 
-Underfull \hbox (badness 10000) in paragraph at lines 223--229
+Underfull \hbox (badness 10000) in paragraph at lines 227--233
 
  []
 
 [6
 
 ]
-Underfull \hbox (badness 10000) in paragraph at lines 249--267
+Underfull \hbox (badness 10000) in paragraph at lines 253--271
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 282--285
+Underfull \hbox (badness 10000) in paragraph at lines 286--289
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 294--303
+Underfull \hbox (badness 10000) in paragraph at lines 298--307
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 323--344
+Underfull \hbox (badness 10000) in paragraph at lines 327--348
 
  []
 
 [7]
 
 Package hyperref Warning: Token not allowed in a PDF string (Unicode):
-(hyperref)                removing `math shift' on input line 351.
+(hyperref)                removing `math shift' on input line 355.
 
 
 Package hyperref Warning: Token not allowed in a PDF string (Unicode):
-(hyperref)                removing `subscript' on input line 351.
+(hyperref)                removing `subscript' on input line 355.
 
 
 Package hyperref Warning: Token not allowed in a PDF string (Unicode):
-(hyperref)                removing `math shift' on input line 351.
+(hyperref)                removing `math shift' on input line 355.
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 359--365
+Underfull \hbox (badness 10000) in paragraph at lines 363--369
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 385--397
+Underfull \hbox (badness 10000) in paragraph at lines 389--401
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 412--418
+Underfull \hbox (badness 10000) in paragraph at lines 416--422
 
  []
 
 [8] [9]
 Chapter 3.
 
-Underfull \hbox (badness 10000) in paragraph at lines 447--453
+Underfull \hbox (badness 10000) in paragraph at lines 451--457
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 462--465
+Underfull \hbox (badness 10000) in paragraph at lines 466--469
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 481--484
+Underfull \hbox (badness 10000) in paragraph at lines 485--488
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 493--496
+Underfull \hbox (badness 10000) in paragraph at lines 497--500
 
  []
 
 [10
 
 ]
-Underfull \hbox (badness 10000) in paragraph at lines 505--508
+Underfull \hbox (badness 10000) in paragraph at lines 509--512
 
  []
 
 
 Package hyperref Warning: Token not allowed in a PDF string (Unicode):
-(hyperref)                removing `math shift' on input line 515.
+(hyperref)                removing `math shift' on input line 519.
 
 
 Package hyperref Warning: Token not allowed in a PDF string (Unicode):
-(hyperref)                removing `math shift' on input line 515.
+(hyperref)                removing `math shift' on input line 519.
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 523--526
+Underfull \hbox (badness 10000) in paragraph at lines 527--530
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 548--551
+Underfull \hbox (badness 10000) in paragraph at lines 552--555
 
  []
 
@@ -614,7 +614,7 @@ Package rerunfilecheck Info: File `manual.brf' has not changed.
 Here is how much of TeX's memory you used:
  10838 strings out of 476182
  165886 string characters out of 5795595
- 1934975 words of memory out of 5000000
+ 1935975 words of memory out of 5000000
  32575 multiletter control sequences out of 15000+600000
  645369 words of font info for 165 fonts, out of 8000000 for 9000
  14 hyphenation exceptions out of 8191
@@ -631,7 +631,7 @@ w/symbol/usyr.pfb></usr/share/texlive/texmf-dist/fonts/type1/urw/times/utmb8a.p
 fb></usr/share/texlive/texmf-dist/fonts/type1/urw/times/utmr8a.pfb></usr/share/
 texlive/texmf-dist/fonts/type1/urw/times/utmr8a.pfb></usr/share/texlive/texmf-d
 ist/fonts/type1/urw/times/utmri8a.pfb>
-Output written on manual.pdf (13 pages, 167953 bytes).
+Output written on manual.pdf (13 pages, 168337 bytes).
 PDF statistics:
  461 PDF objects out of 1000 (max. 8388607)
  281 compressed objects within 3 object streams

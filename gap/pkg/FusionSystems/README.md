@@ -159,7 +159,13 @@ fusion system F_S(B), and the conditions hold automatically.  It therefore
 suffices to run the test over the F-classes of the S-centric subgroups of
 the essential subgroups; these are found from the lattices of the groups
 E/Z(E) (which are tiny for abelian E, and never from the lattice of S), and
-their classes and automizers come from the lazy graph above.
+their classes and automizers come from the lazy graph above.  A class is
+expanded only as far as needed: the F-class of an essential subgroup (or of
+an S-centric subgroup of one) is abandoned at its first member which is not
+S-centric or has a larger normalizer in S, since that member already
+decides the condition.  For a candidate system far from saturation such a
+class can be enormous (a subgroup of an abelian essential subgroup with a
+large automizer, say) while its first bad member is found at once.
 
 **Classification.** `AllFusionSystems` follows Parker–Semeraro: for each
 *p'*-subgroup K of Aut(S) up to conjugacy (Aut_F(S) = Inn(S) ⋊ K), the
