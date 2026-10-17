@@ -175,6 +175,7 @@ InstallGlobalFunction( ProtoEssentialSubgroups, function( arg )
         # S-class representatives which already passed the cheap tests
         X := ShallowCopy( opts.candidates );
         inv := List( X, x -> FS_SubgroupInvariants( S, x ) );
+        seen := X;
     else
         if opts.exhaustive then
             cands := FS_CentricSubgroupClasses( S );
