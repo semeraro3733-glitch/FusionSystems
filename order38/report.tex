@@ -64,11 +64,14 @@ current state is summarised in Section~\ref{sec:status}.
   was stopped after $17\,600$ groups when the $3$-group test was found to use
   a wrong quantity (Section~\ref{sec:reduction}); restarted the same day
   with the corrected pipeline on four cores, about $1.2$ s per group, so
-  roughly five to six days in total.  The statistics of
-  Section~\ref{sec:statistics} are refreshed from time to time.  So far
-  only the groups with a small library number survive (the library is
-  ordered by the number of generators; all $520$ survivors among the first
-  $17\,000$ groups have library number at most $3016$).
+  roughly five to six days in total; restarted a second time the same
+  evening (after $19\,000$ groups) when the look-up table for $\GL_5(3)$,
+  $T\cong3^2$, was found to lack two classes (Section~\ref{sec:lookup}).
+  The statistics of Section~\ref{sec:statistics} are refreshed from time
+  to time.  So far only the groups with a small library number survive
+  (the library is ordered by the number of generators; in the second run
+  all $520$ survivors among the first $19\,000$ groups had library number
+  at most $3016$).
 \item Stage 1b (automorphism group tests): run on the $520$ survivors so
   far; $42$ groups survive (Section~\ref{sec:survivors}).
 \item Look-up tables for $\GL_n(3)$: complete for $n\le 4$, and for $n=5$, $T\cong3^2$ (Section~\ref{sec:lookup}).
@@ -367,14 +370,25 @@ of reach, but for $T\cong 3^2$ the candidates can be constructed directly:
 $O^{3'}(H/O_{3'}(H))$ is $\Alt(6)$, $\PSL_3(4)$ or $M_{11}$, and $7\nmid|\GL_5(3)|$
 excludes $\PSL_3(4)$; hence the perfect residuum $Y$ of $H$ is $\Alt(6)$,
 $\SL_2(9)$ or $M_{11}$ ($M_{11}$ has trivial Schur multiplier), and $H$ lies
-between $Y$ and $N_{\GL_5(3)}(Y)$ by the Frattini argument.  $\Alt(6)$ and
-$\SL_2(9)$ have no faithful $\mathbb{F}_3$-module of dimension $5$ other than
-$4+1$, so they come from the $\GL_4(3)$ table; $M_{11}$ has two dual
-irreducible $5$-dimensional modules (constituents of the module induced from
-a $5$-dimensional constituent of the permutation module of $\PSL_2(11)<M_{11}$
-on $11$ points), giving two further classes of $T$.  The script is
-\texttt{scripts/gl5direct.g}; the four classes of $T\cong3^2$ in $\GL_5(3)$
-with candidates carry $34$, $27$, $2$ and $2$ of them.
+between $Y$ and $N_{\GL_5(3)}(Y)$ by the Frattini argument.  The faithful
+$\mathbb{F}_3$-modules of dimension $5$ are: for $\SL_2(9)$ only $4+1$ (the
+natural module over $\mathbb{F}_9$ and a trivial module; an extension of the
+two splits since the centre acts differently on them), for $\Alt(6)$ the
+split module $4+1$ and the two non-split uniserial modules $4/1$ and $1/4$
+(the permutation module on $6$ points is uniserial $1/4/1$ over
+$\mathbb{F}_3$ and $\mathrm{Ext}^1_{\Alt(6)}(\mathbb{F}_3,4)$ is
+one-dimensional, so the augmentation submodule and its dual are the only
+non-split extensions), and for $M_{11}$ its two dual irreducible
+$5$-dimensional modules (constituents of the module induced from a
+$5$-dimensional constituent of the permutation module of $\PSL_2(11)<M_{11}$
+on $11$ points).  The Sylow $3$-subgroups of the non-split embeddings of
+$\Alt(6)$ are not conjugate to that of $4+1$, so they give two further
+classes of $T$.  The script is \texttt{scripts/gl5direct.g}; the six
+classes of $T\cong3^2$ in $\GL_5(3)$ with candidates carry $34$, $27$, $2$,
+$2$, $5$ and $5$ of them.  \textcolor{red}{[The first version of this table
+omitted the two non-split embeddings of $\Alt(6)$; the Stage 1a sweep,
+which uses the table to discard candidates, was restarted a second time
+on 17 October 2026 (evening) with the corrected table.]}
 \input{tables/gl5_3x3.tex}
 
 \paragraph{Completeness of the automizer candidates.}  For an essential
