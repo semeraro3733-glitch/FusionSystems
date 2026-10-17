@@ -82,6 +82,8 @@ FS38_StabilityKernel := function( N, pairs )
     return C;
 end;
 
+FS38_SylU39 := Image( IsomorphismPcGroup( SylowSubgroup( SU( 3, 9 ), 3 ) ) );
+
 # the type of Q = N_S(E)/E, or fail if Q cannot be a Sylow 3-subgroup of a
 # group with a strongly 3-embedded subgroup
 FS38_SylowType := function( Q )
@@ -94,7 +96,26 @@ FS38_SylowType := function( Q )
     if n = 729 and IsomorphismGroups( Q, FS38_SylU39 ) <> fail then return "Syl_3(U3(9))"; fi;
     return fail;
 end;
-FS38_SylU39 := Image( IsomorphismPcGroup( SylowSubgroup( SU( 3, 9 ), 3 ) ) );
+
+# For non-cyclic T = Out_S(E), O^{3'}(Out_F(E)/O_{3'}(Out_F(E))) is a simple
+# group determined by T up to finitely many choices, and its order divides
+# |Aut(E)|.  The product of the primes dividing the order of every choice:
+#   3^2: L2(9), L3(4), M11 -> 5;   3^3: L2(27) -> 7*13;   3^{1+2}_+: U3(3) -> 7;
+#   3^4: L2(81) -> 5*41;  3^5: L2(243) -> 11*61;  3^6: L2(729), U3(9) -> 5*73.
+FS38_RequiredDivisor := function( type )
+    if type = "3^2" then return 5;
+    elif type = "3^3" then return 91;
+    elif type = "3^{1+2}_+" then return 7;
+    elif type = "3^4" then return 205;
+    elif type = "3^5" then return 671;
+    elif type = "3^6" or type = "Syl_3(U3(9))" then return 365;
+    fi;
+    return 1;
+end;
+
+# timers for the stages of FS38_Cheap (ms)
+FS38_Timers := rec( cands := 0, pre := 0, classes := 0, type := 0, frattini := 0, chain := 0, aut := 0, radical := 0, charS := 0 );
+FS38_ResetTimers := function() local n; for n in RecNames( FS38_Timers ) do FS38_Timers.( n ) := 0; od; end;
 
 # invariants used to distinguish S-classes of subgroups
 FS38_Inv := function( S, E )
@@ -142,10 +163,12 @@ end;
 #   inv     [ |Z(S)|, class, rank, exponent, |S'|, |Phi(S)| ]
 FS38_Cheap := function( S )
     local Z, cands, seen, seeninv, E, inv, N, q, Q, type, Phi, pairs, C, res, charsE,
-          charS, W, result, pre, a;
+          charS, W, result, pre, a, t;
     Z := Center( S );
     if Index( S, Z ) <= 9 then return rec( status := "reject", reason := "|S:Z(S)| <= 9" ); fi;
+    t := Runtime();
     cands := FS38_Candidates( S );
+    FS38_Timers.cands := FS38_Timers.cands + Runtime() - t; t := Runtime();
     # cheap tests first (normalizer, centric), then the S-class test
     pre := [];
     for E in cands do
@@ -154,45 +177,58 @@ FS38_Cheap := function( S )
         if not IsSubset( E, Centralizer( S, E ) ) then continue; fi;
         Add( pre, [ E, N ] );
     od;
+    FS38_Timers.pre := FS38_Timers.pre + Runtime() - t;
     seen := []; seeninv := []; res := [];
     for C in pre do
         E := C[1]; N := C[2];
+        t := Runtime();
         inv := [ Size( E ), Size( N ), Size( Center( E ) ), Size( FrattiniSubgroup( E ) ), Size( DerivedSubgroup( E ) ) ];
-        if FS_ClassPosition( S, seen, seeninv, E ) <> fail then continue; fi;
+        if FS_ClassPosition( S, seen, seeninv, E ) <> fail then FS38_Timers.classes := FS38_Timers.classes + Runtime() - t; continue; fi;
         Add( seen, E ); Add( seeninv, inv );
+        FS38_Timers.classes := FS38_Timers.classes + Runtime() - t; t := Runtime();
         q := NaturalHomomorphismByNormalSubgroup( N, E );
         Q := Image( q );
         type := FS38_SylowType( Q );
+        FS38_Timers.type := FS38_Timers.type + Runtime() - t; t := Runtime();
         if type = fail then continue; fi;
         Phi := FrattiniSubgroup( E );
         if Index( E, Phi ) < Size( Q )^2 then continue; fi;
         # the Frattini quotient test, then the finer chain of characteristic subgroups
         C := FS38_StabilityKernel( N, [ [ Phi, E ] ] );
+        FS38_Timers.frattini := FS38_Timers.frattini + Runtime() - t; t := Runtime();
         if not IsSubset( E, C ) then continue; fi;
         charsE := FS38_CharList( E );
         pairs := FS38_CoveringPairs( E, charsE );
         C := FS38_StabilityKernel( N, pairs );
+        FS38_Timers.chain := FS38_Timers.chain + Runtime() - t; t := Runtime();
         if not IsSubset( E, C ) then continue; fi;
         # (R2e) an essential subgroup has a 3'-automorphism (Out_S(E) is not
-        # normal in Out_F(E)): Aut(E) must not be a 3-group
+        # normal in Out_F(E)): Aut(E) must not be a 3-group, and the simple
+        # section forced by a non-cyclic Out_S(E) must fit into Out(E)
         a := AutomorphismGroupPGroup( E );
+        FS38_Timers.aut := FS38_Timers.aut + Runtime() - t; t := Runtime();
         if a.glOrder = 1 or SmallestRootInt( a.glOrder ) = 3 then continue; fi;
+        if a.size mod FS38_RequiredDivisor( type ) <> 0 then continue; fi;
         # the exact radical test Aut_S(E) meet O_3(Aut(E)) = Inn(E), and
         # Aut(E) insoluble unless Out_S(E) is cyclic [Parker-Semeraro]
-        if not FS_RadicalTest( S, E ) then continue; fi;
-        if not IsCyclic( Q ) and IsSolvableGroup( FS_AutHandle( E ).model ) then continue; fi;
+        if not FS_RadicalTest( S, E ) then FS38_Timers.radical := FS38_Timers.radical + Runtime() - t; continue; fi;
+        if not IsCyclic( Q ) and IsSolvableGroup( FS_AutHandle( E ).model ) then FS38_Timers.radical := FS38_Timers.radical + Runtime() - t; continue; fi;
+        FS38_Timers.radical := FS38_Timers.radical + Runtime() - t;
         Add( res, rec( E := E, order := Size( E ), index := Size( Q ), type := type, autorder := a.size,
                        elab := IsElementaryAbelian( E ), abelian := IsAbelian( E ), rank := RankPGroup( E ), chars := charsE ) );
     od;
     if Length( res ) = 0 then return rec( status := "reject", reason := "no candidate essential subgroup" ); fi;
     # (R3) visibly characteristic subgroups
+    t := Runtime();
     charS := FS38_CharList( S );
     for W in charS do
         if ForAll( res, r -> IsSubset( r.E, W ) and W in r.chars ) then
+            FS38_Timers.charS := FS38_Timers.charS + Runtime() - t;
             return rec( status := "reject", reason := Concatenation( "characteristic subgroup of order ", String( Size( W ) ), " in all candidates" ),
                         cands := res );
         fi;
     od;
+    FS38_Timers.charS := FS38_Timers.charS + Runtime() - t;
     result := rec( status := "survive", cands := res,
                    inv := [ Size( Z ), NilpotencyClassOfGroup( S ), RankPGroup( S ), Exponent( S ),
                             Size( DerivedSubgroup( S ) ), Size( FrattiniSubgroup( S ) ) ] );
