@@ -13,7 +13,7 @@ while [ $r -lt $NPROC ]; do
   prog="$DIR/data/stage1a/progress_$r.txt"
   start=$((r+1))
   if [ -s "$out" ]; then
-    last=$(tail -n 1 "$out" | cut -d';' -f1)
+    last=$(python3 "$DIR/scripts/analyze.py" --lastid "$out")
     start=$((last+NPROC))
   fi
   pidfile="$DIR/data/stage1a/pid_$r.txt"

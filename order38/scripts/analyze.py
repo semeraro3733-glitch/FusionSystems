@@ -11,14 +11,43 @@ tables/stage1a_stats.tex, and prints a summary.
 """
 import glob, re, sys, os, collections
 
+if len(sys.argv) == 3 and sys.argv[1] == "--lastid":
+    # the last id with a complete line in the given part file (for resuming)
+    last = 0
+    cur = ""
+    with open(sys.argv[2]) as f:
+        for line in f:
+            line = line.rstrip("\n")
+            if line.endswith("\\"):
+                cur += line[:-1]; continue
+            cur += line
+            p = cur.split(";")
+            if len(p) >= 3 and p[0].isdigit():
+                last = int(p[0])
+            cur = ""
+    print(last)
+    sys.exit(0)
+
 base = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
-lines = []
-for fn in sorted(glob.glob(os.path.join(base, "data", "stage1a", "part_*.txt"))):
+def read_joined(fn):
+    """Lines of fn, with GAP's wrapped lines (ending in a backslash) joined."""
+    out = []
+    cur = ""
     with open(fn) as f:
         for line in f:
             line = line.rstrip("\n")
-            if line:
-                lines.append(line)
+            if line.endswith("\\"):
+                cur += line[:-1]
+                continue
+            cur += line
+            if cur.strip():
+                out.append(cur)
+            cur = ""
+    return out
+
+lines = []
+for fn in sorted(glob.glob(os.path.join(base, "data", "stage1a", "part_*.txt"))):
+    lines.extend(read_joined(fn))
 
 n = len(lines)
 status = collections.Counter()
@@ -29,7 +58,13 @@ survivors = []
 cand_re = re.compile(r"\[(\d+),(\d+),([^,\]]+),(true|false),(true|false),(\d+),(\d+)\]")
 for line in lines:
     parts = line.split(";")
-    gid = int(parts[0]); st = parts[1]
+    if len(parts) < 2:
+        continue
+    try:
+        gid = int(parts[0])
+    except ValueError:
+        continue
+    st = parts[1]
     status[st] += 1
     try:
         times.append(int(parts[-1]))

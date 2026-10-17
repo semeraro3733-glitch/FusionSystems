@@ -385,7 +385,7 @@ end;
 
 # process the ids  a, a+step, a+2*step, ... <= b  and append to file
 FS38_Run := function( a, step, b, file, progressfile )
-    local id, S, r, t, line, t0, n;
+    local id, S, r, t, line, t0, n, out;
     t0 := Runtime(); n := 0;
     b := b - ( ( b - a ) mod step );      # GAP ranges need (b - a) divisible by step
     for id in [ a, a + step .. b ] do
@@ -397,7 +397,10 @@ FS38_Run := function( a, step, b, file, progressfile )
         else
             line := Concatenation( String( id ), ";error;", String( r[2] ) );
         fi;
-        AppendTo( file, line, ";", Runtime() - t, "\n" );
+        # unformatted output (no line wrapping), one line per group
+        out := OutputTextFile( file, true ); SetPrintFormattingStatus( out, false );
+        AppendTo( out, line, ";", Runtime() - t, "\n" );
+        CloseStream( out );
         n := n + 1;
         if n mod 500 = 0 then
             PrintTo( progressfile, id, " ", Runtime() - t0, "\n" );
