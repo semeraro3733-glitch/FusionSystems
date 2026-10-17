@@ -99,25 +99,65 @@ FS38_Inv := function( S, E )
     return [ Size( E ), Size( Normalizer( S, E ) ), Size( Center( E ) ), Size( FrattiniSubgroup( E ) ), Size( DerivedSubgroup( E ) ) ];
 end;
 
+# The candidates C_S(xA/A) of Gautam's theorem, one for each distinct
+# subgroup: the centralizers are taken from the conjugacy classes of the
+# quotients S/A (where they are stored by the class computation) and
+# duplicates are removed inside the quotient before the preimage is formed.
+FS38_Candidates := function( S )
+    local p, ser, k, cands, i, q, Q, c, C, seenQ, x;
+    p := PrimePGroup( S );
+    ser := RefinedLowerCentralSeries( S );
+    k := Position( ser, DerivedSubgroup( S ) );
+    cands := [];
+    for i in [ k + 1 .. Length( ser ) ] do          # A = S' only gives C = S
+        if i = Length( ser ) then
+            Q := S; q := fail;
+        else
+            q := NaturalHomomorphismByNormalSubgroup( S, ser[i] );
+            Q := Image( q );
+        fi;
+        seenQ := [];
+        for c in ConjugacyClasses( Q ) do
+            x := Representative( c );
+            if Order( x ) <> p then continue; fi;
+            C := Centralizer( c );                  # stored by the class computation
+            if Size( C ) = Size( Q ) then continue; fi;
+            if C in seenQ then continue; fi;
+            Add( seenQ, C );
+            if q = fail then
+                Add( cands, C );
+            else
+                Add( cands, PreImage( q, C ) );
+            fi;
+        od;
+    od;
+    return cands;
+end;
+
 # Stage 1a for one group.  Returns a record with components
 #   status  "reject" or "survive",  reason (for rejects),
 #   cands   list of records ( order, index (|N_S(E):E|), type, elab, abelian, rank, chars )
 #   inv     [ |Z(S)|, class, rank, exponent, |S'|, |Phi(S)| ]
 FS38_Cheap := function( S )
     local Z, cands, seen, seeninv, E, inv, N, q, Q, type, Phi, pairs, C, res, charsE,
-          charS, W, ok, L, cl, x, i, k, result, data;
+          charS, W, result, pre;
     Z := Center( S );
     if Index( S, Z ) <= 9 then return rec( status := "reject", reason := "|S:Z(S)| <= 9" ); fi;
-    cands := CentralSeriesCentralizers( S );
-    seen := []; seeninv := []; res := [];
+    cands := FS38_Candidates( S );
+    # cheap tests first (normalizer, centric), then the S-class test
+    pre := [];
     for E in cands do
-        if E = S then continue; fi;
-        inv := FS38_Inv( S, E );
-        if FS_ClassPosition( S, seen, seeninv, E ) <> fail then continue; fi;
-        Add( seen, E ); Add( seeninv, inv );
         N := Normalizer( S, E );
         if N = E then continue; fi;
         if not IsSubset( E, Centralizer( S, E ) ) then continue; fi;
+        Add( pre, [ E, N ] );
+    od;
+    seen := []; seeninv := []; res := [];
+    for C in pre do
+        E := C[1]; N := C[2];
+        inv := [ Size( E ), Size( N ), Size( Center( E ) ), Size( FrattiniSubgroup( E ) ), Size( DerivedSubgroup( E ) ) ];
+        if FS_ClassPosition( S, seen, seeninv, E ) <> fail then continue; fi;
+        Add( seen, E ); Add( seeninv, inv );
         q := NaturalHomomorphismByNormalSubgroup( N, E );
         Q := Image( q );
         type := FS38_SylowType( Q );
