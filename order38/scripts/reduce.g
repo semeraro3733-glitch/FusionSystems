@@ -141,6 +141,37 @@ FS38_GLGroups := [];         # the permutation image of GL(n,3)
 FS38_GLIso := [];            # the isomorphism GL(n,3) -> permutation group
 FS38_GLTables := [];         # the table records with T (perm image) and cands (matrices)
 FS38_GLTableTypes := [];     # the T-types covered by the table of GL(n,3)
+FS38_GLAdmissibleMats := []; # generator matrices of the admissible T (for the module method, n >= 5)
+
+# A conjugating matrix g with g^-1 T0 g = T for two subgroups T0 = <T0mats>
+# and T = <Tmats> of GL(n,3) isomorphic to 3^2, or fail: T0 and T are
+# conjugate iff for some generating pair (c1,c2) of T the GF(3)-modules
+# given by the generators of T0 and by (c1,c2) are isomorphic (the
+# backtrack conjugacy test in GL(6,3) is too slow for this).
+FS38_ModuleConjugator := function( T0mats, Tmats )
+    local F3, T0, T, a1, a2, M1, els, c1, c2, M2, X;
+    F3 := GF( 3 );
+    T0 := Group( T0mats ); T := Group( Tmats );
+    if Size( T0 ) <> 9 or Size( T ) <> 9 then return fail; fi;
+    a1 := First( Elements( T0 ), x -> not IsOne( x ) );
+    a2 := First( Elements( T0 ), x -> not x in Group( a1 ) );
+    M1 := GModuleByMats( [ a1, a2 ], F3 );
+    els := Filtered( Elements( T ), x -> not IsOne( x ) );
+    for c1 in els do
+        for c2 in els do
+            if c2 in Group( c1 ) then continue; fi;
+            M2 := GModuleByMats( [ c1, c2 ], F3 );
+            X := MTX.IsomorphismModules( M1, M2 );
+            if X <> fail then
+                if ForAll( [ 1, 2 ], i -> X^-1 * M1.generators[i] * X = M2.generators[i] ) then return ImmutableMatrix( F3, X ); fi;
+                if ForAll( [ 1, 2 ], i -> X * M1.generators[i] * X^-1 = M2.generators[i] ) then return ImmutableMatrix( F3, X^-1 ); fi;
+                Error( "unexpected convention of MTX.IsomorphismModules" );
+            fi;
+        od;
+    od;
+    return fail;
+end;
+
 for n in [ 2 .. 6 ] do
     if n <= 4 then
         f := Concatenation( "/home/user/FusionSystems/order38/data/gl", String( n ), "_table.g" );
@@ -153,9 +184,11 @@ for n in [ 2 .. 6 ] do
         FS38_GLIso[n] := IsomorphismPermGroup( GL( n, 3 ) );
         FS38_GLGroups[n] := Image( FS38_GLIso[n] );
         FS38_GLTables[n] := List( ValueGlobal( Concatenation( "GLTABLE_", String( n ) ) ), r -> rec( Ttype := r.Ttype,
+            Tmats := List( r.Tmats, m -> ImmutableMatrix( GF( 3 ), m * One( GF( 3 ) ) ) ),
             T := Image( FS38_GLIso[n], Group( List( r.Tmats, m -> ImmutableMatrix( GF( 3 ), m * One( GF( 3 ) ) ) ) ) ),
             cands := List( r.cands, c -> List( c.gens, m -> ImmutableMatrix( GF( 3 ), m * One( GF( 3 ) ) ) ) ) ) );
         FS38_GLAdmissible[n] := List( Filtered( FS38_GLTables[n], r -> Length( r.cands ) > 0 ), r -> r.T );
+        FS38_GLAdmissibleMats[n] := List( Filtered( FS38_GLTables[n], r -> Length( r.cands ) > 0 ), r -> r.Tmats );
         if n <= 4 then
             FS38_GLTableTypes[n] := fail;        # complete for all admissible types
         else
@@ -191,9 +224,14 @@ FS38_TableCandidates := function( S, P )
     Tp := Image( FS38_GLIso[n], Tmat );
     for r in FS38_GLTables[n] do
         if Size( r.T ) <> Size( Tp ) then continue; fi;
-        g := RepresentativeAction( FS38_GLGroups[n], r.T, Tp );
-        if g = fail then continue; fi;
-        gmat := PreImagesRepresentative( FS38_GLIso[n], g );
+        if n >= 5 then
+            gmat := FS38_ModuleConjugator( r.Tmats, GeneratorsOfGroup( Tmat ) );
+            if gmat = fail then continue; fi;
+        else
+            g := RepresentativeAction( FS38_GLGroups[n], r.T, Tp );
+            if g = fail then continue; fi;
+            gmat := PreImagesRepresentative( FS38_GLIso[n], g );
+        fi;
         pcgs := Pcgs( P );
         res := [];
         for H in r.cands do
@@ -365,7 +403,7 @@ FS38_Cheap := function( S )
         fi;
         FS38_Timers.frattini := FS38_Timers.frattini + Runtime() - t; t := Runtime();
         # one representative per S-class from here on
-        inv := [ Size( E ), Size( N ), Size( Center( E ) ), Size( Phi ), Size( DerivedSubgroup( E ) ) ];
+        inv := FS_SubgroupInvariants( S, E );     # the invariants FS_ClassPosition compares with
         if FS_ClassPosition( S, seen, seeninv, E ) <> fail then FS38_Timers.classes := FS38_Timers.classes + Runtime() - t; continue; fi;
         Add( seen, E ); Add( seeninv, inv );
         FS38_Timers.classes := FS38_Timers.classes + Runtime() - t; t := Runtime();
@@ -375,9 +413,17 @@ FS38_Cheap := function( S )
             FS38_Counts.elab := FS38_Counts.elab + 1;
             n := RankPGroup( E );
             if IsBound( FS38_GLAdmissible[n] ) and ( FS38_GLTableTypes[n] = fail or type in FS38_GLTableTypes[n] ) then
-                T := Image( FS38_GLIso[n], FS38_AutSMatrices( S, E, N ) );
-                if not ForAny( FS38_GLAdmissible[n], T0 -> Size( T0 ) = Size( T ) and IsConjugate( FS38_GLGroups[n], T0, T ) ) then
-                    FS38_Timers.frattini := FS38_Timers.frattini + Runtime() - t; continue;
+                if n >= 5 then
+                    # only T = 3^2 is tabulated: the module method
+                    T := GeneratorsOfGroup( FS38_AutSMatrices( S, E, N ) );
+                    if not ForAny( FS38_GLAdmissibleMats[n], T0 -> FS38_ModuleConjugator( T0, T ) <> fail ) then
+                        FS38_Timers.frattini := FS38_Timers.frattini + Runtime() - t; continue;
+                    fi;
+                else
+                    T := Image( FS38_GLIso[n], FS38_AutSMatrices( S, E, N ) );
+                    if not ForAny( FS38_GLAdmissible[n], T0 -> Size( T0 ) = Size( T ) and IsConjugate( FS38_GLGroups[n], T0, T ) ) then
+                        FS38_Timers.frattini := FS38_Timers.frattini + Runtime() - t; continue;
+                    fi;
                 fi;
             elif n = 5 and type = "C9" then
                 # no subgroup of GL_5(3) has a cyclic Sylow 3-subgroup of

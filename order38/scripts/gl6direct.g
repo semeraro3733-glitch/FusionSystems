@@ -136,8 +136,36 @@ FS38_GL6Residua := function( iso )
     return res;
 end;
 
+# conjugacy of two subgroups T1, T2 = 3^2 of GL_6(3) (given as permutation
+# groups, iso the isomorphism from the matrix group) through the module
+# structure: T1^g = T2 iff for some generating pair (c1,c2) of T2 the
+# GF(3)T-modules given by the generators of T1 and by (c1,c2) are isomorphic;
+# returns the conjugating matrix or fail
+FS38_GL6ConjugateT := function( iso, T1, T2 )
+    local a, M1, els, c1, c2, M2, X, g;
+    a := List( GeneratorsOfGroup( T1 ), x -> PreImagesRepresentative( iso, x ) );
+    if Length( a ) <> 2 then a := List( MinimalGeneratingSet( T1 ), x -> PreImagesRepresentative( iso, x ) ); fi;
+    M1 := GModuleByMats( a, GF( 3 ) );
+    els := Filtered( Elements( T2 ), x -> not IsOne( x ) );
+    for c1 in els do
+        for c2 in els do
+            if c2 in Group( c1 ) then continue; fi;
+            M2 := GModuleByMats( List( [ c1, c2 ], x -> PreImagesRepresentative( iso, x ) ), GF( 3 ) );
+            X := MTX.IsomorphismModules( M1, M2 );
+            if X <> fail then
+                # find the convention: g with g^-1 a g = c
+                if ForAll( [ 1, 2 ], i -> X^-1 * M1.generators[i] * X = M2.generators[i] ) then g := X;
+                elif ForAll( [ 1, 2 ], i -> X * M1.generators[i] * X^-1 = M2.generators[i] ) then g := X^-1;
+                else Error( "unexpected convention of MTX.IsomorphismModules" ); fi;
+                return ImmutableMatrix( GF( 3 ), g );
+            fi;
+        od;
+    od;
+    return fail;
+end;
+
 FS38_GL6Direct3x3 := function()
-    local G, iso, Gp, Ys, tab, Y, N, T, ints, H, r, found, Tp, res, t;
+    local G, iso, Gp, Ys, tab, Y, N, T, ints, H, r, pos, g, candsY, res, t, K;
     G := GL( 6, 3 );
     iso := IsomorphismPermGroup( G );
     Gp := Image( iso );
@@ -150,28 +178,35 @@ FS38_GL6Direct3x3 := function()
         T := SylowSubgroup( Y.grp, 3 );
         if Size( T ) <> 9 then Error( "Sylow 3-subgroup of the residuum is not of order 9" ); fi;
         ints := Concatenation( [ Y.grp, N ], IntermediateSubgroups( N, Y.grp ).subgroups );
+        # the candidates between Y and N(Y), one per N(Y)-class (candidates
+        # with different residua are never conjugate)
+        candsY := [];
         for H in ints do
             if FS_PPart( Size( H ), 3 ) <> 9 then continue; fi;
             if not HasStronglyPEmbeddedSubgroup( H, 3 ) then continue; fi;
-            found := false;
-            for r in tab do
-                if RepresentativeAction( Gp, r.T, T ) <> fail then
-                    Tp := RepresentativeAction( Gp, T, r.T );
-                    H := ConjugateSubgroup( H, Tp );
-                    if ForAll( r.cands, K -> Size( K ) <> Size( H ) or RepresentativeAction( r.NT, K, H ) = fail ) then Add( r.cands, H ); fi;
-                    found := true; break;
-                fi;
-            od;
-            if not found then
-                Add( tab, rec( T := T, NT := Normalizer( Gp, T ), cands := [ H ] ) );
-            fi;
+            if ForAny( candsY, K -> Size( K ) = Size( H ) and RepresentativeAction( N, K, H ) <> fail ) then continue; fi;
+            Add( candsY, H );
         od;
-        Info( InfoFusionSystems, 1, "  ", Length( tab ), " classes of T so far, candidates ", List( tab, r -> Length( r.cands ) ) );
+        # the class of T among the classes found so far
+        pos := fail;
+        for r in [ 1 .. Length( tab ) ] do
+            g := FS38_GL6ConjugateT( iso, T, tab[r].T );
+            if g <> fail then pos := r; g := Image( iso, g ); break; fi;
+        od;
+        if pos = fail then
+            Add( tab, rec( T := T, cands := [] ) );
+            pos := Length( tab ); g := One( Gp );
+        fi;
+        for H in candsY do
+            Add( tab[ pos ].cands, ConjugateSubgroup( H, g ) );
+        od;
+        Info( InfoFusionSystems, 1, "  ", Length( candsY ), " candidates from ", Y.name, "; ", Length( tab ), " classes of T so far with ",
+              List( tab, r -> Length( r.cands ) ), " candidates (", Runtime() - t, " ms)" );
     od;
     res := [];
     for r in tab do
         Add( res, rec( n := 6, T := r.T, Tmats := List( GeneratorsOfGroup( r.T ), x -> PreImagesRepresentative( iso, x ) ),
-                       Ttype := "3^2", NT := Size( r.NT ),
+                       Ttype := "3^2", NT := 0,
                        cands := List( r.cands, function( H ) local mats, module;
                            mats := List( GeneratorsOfGroup( H ), x -> PreImagesRepresentative( iso, x ) );
                            module := GModuleByMats( mats, GF( 3 ) );
